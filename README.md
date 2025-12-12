@@ -27,17 +27,25 @@ This is an Uplink mod I started to make small quality-of-life changes for things
 
 ## Building
 
-The project has been upgraded to use CMake for building and vcpkg for dependencies. To build the project, have both CMake 3.15+ and vcpkg in your path and run the following commands in the project's root directory:
-```
-cmake -B out -S .
-# to make a debug FULLGAME build
-cmake --build out --config debug
-# to make a debug DEMOGAME build
-cmake --build out --config debug -DUPLINK_BUILD_TYPE=demo
-# to make a debug TESTGAME build
-cmake --build out --config debug -DUPLINK_BUILD_TYPE=test
-# to make a release FULLGAME build
-cmake --build out --config release
+### Requirements
+- **CMake 3.30+**
+- **vcpkg** (set `VCPKG_ROOT` environment variable)
+- **Visual Studio 2022 or 2026** with "Desktop development with C++" workload
+
+### Build Instructions
+
+The project uses CMake for building and vcpkg for dependencies. Run the following commands in the project's root directory:
+
+```bash
+# Configure (use appropriate generator for your VS version)
+cmake -S . -B out/build -G "Visual Studio 17 2022" -A x64   # For VS 2022
+cmake -S . -B out/build -G "Visual Studio 18 2026" -A x64   # For VS 2026
+
+# Build Release
+cmake --build out/build --config Release
+
+# Build Debug
+cmake --build out/build --config Debug
 ```
 
-This will write uplink-game.exe to the uplink/bin directory. This is where you should put the contents of your game directory in order to test the build.
+The executable will be written to `uplink/bin/Release/` (or `Debug/`). Copy the original Uplink game data files (`.dat` files from the `Installer/data` folder) to this directory to run the game.
