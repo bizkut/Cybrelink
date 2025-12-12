@@ -164,18 +164,11 @@ void LoginInterface::ProceedClick(Button* button)
 {
 
 	UplinkAssert(EclGetButton("userid_name"));
-	UplinkAssert(EclGetButton("userid_code"));
 
 	char username[256];
-	char password[256];
 	UplinkStrncpy(username, EclGetButton("userid_name")->caption.c_str(), sizeof(username));
-	UplinkStrncpy(password, EclGetButton("userid_code")->caption.c_str(), sizeof(password));
 
-	// CYBRELINK: Authenticate with Supabase before loading game
-	// Username is the handle, we need to find the email from saved game
-	// For now, try using username@username format or check the save file
-
-	// Try to load the save file first to get the stored email
+	// Check if save file exists
 	char filename[512];
 	UplinkSnprintf(filename, sizeof(filename), "%s%s.usr", app->userpath, username);
 
@@ -185,6 +178,32 @@ void LoginInterface::ProceedClick(Button* button)
 		return;
 	}
 	fclose(testFile);
+
+	// CYBRELINK: Try to read credentials from .auth companion file for auto-login
+	char authFilePath[512];
+	UplinkSnprintf(authFilePath, sizeof(authFilePath), "%s%s.auth", app->userpath, username);
+
+	char storedEmail[256] = { 0 };
+	char storedPassword[256] = { 0 };
+
+	FILE* authFile = fopen(authFilePath, "r");
+	if (authFile) {
+		// Read email and password from .auth file
+		if (fgets(storedEmail, sizeof(storedEmail), authFile)) {
+			// Remove trailing newline
+			size_t len = strlen(storedEmail);
+			if (len > 0 && storedEmail[len - 1] == '\n') {
+				storedEmail[len - 1] = '\0';
+			}
+		}
+		if (fgets(storedPassword, sizeof(storedPassword), authFile)) {
+			size_t len = strlen(storedPassword);
+			if (len > 0 && storedPassword[len - 1] == '\n') {
+				storedPassword[len - 1] = '\0';
+			}
+		}
+		fclose(authFile);
+	}
 
 	// Initialize Supabase if needed
 	Net::SupabaseClient& supabase = Net::SupabaseClient::Instance();
@@ -196,29 +215,18 @@ void LoginInterface::ProceedClick(Button* button)
 			"MDkwNDAsImV4cCI6MjA4MTA4NTA0MH0.oV0AiRm3vn_IkclBiHOcVUXAFD84st9fCS0cuASesd8");
 	}
 
-	// For login, we need the email. Try username as-is first (if they entered their email)
-	// or append @cybrelink.local for local testing
-	std::string email = username;
-	if (strchr(username, '@') == nullptr) {
-		// Username doesn't contain @, might be a handle - try loading email from save
-		// For now, we'll skip auth if no @ in username
-		// TODO: Load email from save file and use that
-	}
-
-	// If password is empty or default, skip auth for now
-	if (strlen(password) < 6) {
-		// Allow loading without auth for backwards compatibility
-	} else if (strchr(username, '@') != nullptr) {
-		// Try to authenticate
-		std::string token = supabase.Login(email, password);
+	// Auto-login using stored credentials if available
+	if (strlen(storedEmail) > 0 && strlen(storedPassword) > 0) {
+		std::string token = supabase.Login(storedEmail, storedPassword);
 		if (token.empty()) {
-			create_msgbox("Login Failed",
-						  "Unable to login with Supabase.\n\n"
-						  "Please check your email and password.\n"
-						  "If you forgot your password, you may need to create a new account.");
-			return;
+			// Login failed - could be network issue or password changed
+			// Allow loading anyway but warn user
+			create_msgbox("Offline Mode",
+						  "Could not connect to Cybrelink servers.\n"
+						  "Loading in offline mode.");
 		}
 	}
+	// If no stored credentials, just continue without auth (backwards compatibility)
 
 	app->GetMainMenu()->RunScreen(MAINMENU_LOADING);
 

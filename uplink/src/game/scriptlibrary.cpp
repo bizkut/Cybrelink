@@ -904,6 +904,16 @@ void ScriptLibrary::Script33()
 			password,
 			sizeof(game->GetWorld()->GetPlayer()->supabase_password) - 1);
 
+	// CYBRELINK: Create .auth companion file for auto-login
+	// This allows reading credentials without parsing complex binary save file
+	char authFilePath[512];
+	UplinkSnprintf(authFilePath, sizeof(authFilePath), "%s%s.auth", app->userpath, name);
+	FILE* authFile = fopen(authFilePath, "w");
+	if (authFile) {
+		fprintf(authFile, "%s\n%s\n", email, password);
+		fclose(authFile);
+	}
+
 	// Open a new account with Uplink International Bank
 
 	Computer* bank = game->GetWorld()->GetComputer(NameGenerator::GenerateInternationalBankName("Uplink"));
