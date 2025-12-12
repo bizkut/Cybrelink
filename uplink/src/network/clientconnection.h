@@ -10,18 +10,20 @@
 #ifndef _included_clientconnection_h
 #define _included_clientconnection_h
 
+#include <cstdint>
+
 #if ENABLE_NETWORK
-	#include <tcp4u.h>
+	#include "network/network_sdl.h"
+	#include "network/tcp4u_compat.h"
+	using SOCKET_TYPE = Net::Socket*;
+#else
+	using SOCKET_TYPE = int;
 #endif
 
 #include "app/uplinkobject.h"
 
 #include "world/date.h"
 #include "world/rating.h"
-
-#ifndef ENABLE_NETWORK
-	#define SOCKET uint32_t
-#endif
 
 class ClientConnection : public UplinkObject {
 
@@ -42,7 +44,7 @@ protected:
 	char ip[128]; // Specific to CLIENT_STATUS
 
 public:
-	SOCKET socket;
+	SOCKET_TYPE socket;
 
 	int clienttype;
 	int connectiontime;
@@ -58,7 +60,7 @@ public:
 	ClientConnection();
 	virtual ~ClientConnection();
 
-	void SetSocket(SOCKET socket);
+	void SetSocket(SOCKET_TYPE socket);
 	void SetClientType(int newclienttype);
 	void SetConnectionTime(int newtime);
 

@@ -1,0 +1,146 @@
+﻿}
+
+void NotificationEvent::GiveMissionToNPC()
+{
+
+	//
+	// Choose a random Uplink Agent (not the player)
+	//
+
+	Agent* agent = WorldGenerator::GetRandomAgent();
+	UplinkAssert(agent);
+
+	//
+	// Build a list of candidate missions
+	// Sorted into difficulty order
+	// Keep an eye out for "priority" missions
+	//
+
+	CompanyUplink* uplink = (CompanyUplink*)game->GetWorld()->GetCompany("Uplink");
+	UplinkAssert(uplink);
+	LList<Mission*>* fullist = &(uplink->missions);
+	LList<Mission*> missions;
+	LList<int> missions_index; // Indexes of each mission
+
+	Mission* prioritymission = NULL;
+	int prioritymissionindex = -1;
+
+	for (int i = 0; i < fullist->Size(); ++i) {
+
+		Mission* mission = fullist->GetData(i);
+		UplinkAssert(mission);
+
+		if (agent->rating.uplinkrating >= mission->minuplinkrating && mission->TYPE != MISSION_SPECIAL
+			&& !(mission->TYPE == MISSION_TRACEUSER && strcmp(mission->completionA, agent->name) == 0)) {
+
+			if (mission->npcpriority) {
+				// This is a priority mission - accept it!
+				prioritymission = mission;
+				prioritymissionindex = i;
+				break;
+			}
+
+			Date testdate;
+			testdate.SetDate(&(mission->createdate));
+			testdate.AdvanceDay(7);
+
+			if (testdate.Before(&(game->GetWorld()->date))) {
+
+				// This is not a priority mission, so let it hang around for a week
+				// before giving it to NPC agents
+
+				bool inserted = false;
+
+				for (int j = 0; j < missions.Size(); ++j) {
+					if (mission->difficulty < missions.GetData(j)->difficulty) {
+						missions.PutDataAtIndex(mission, j);
+						missions_index.PutDataAtIndex(i, j);
+						inserted = true;
+						break;
+					}
+				}
+
+				if (!inserted) {
+					missions.PutDataAtEnd(mission);
+					missions_index.PutDataAtEnd(i);
+				}
+			}
+		}
+	}
+
+	//
+	// If we have found a priority mission, accept it immediately
+	// Otherwise, choose a mission from the available list
+	//
+
+	if (prioritymission) {
+
+		agent->GiveMission(prioritymission);
+		fullist->RemoveData(prioritymissionindex);
+
+		// Schedule an event to make the agent attempt the mission
+		// in a few hours
+
+		Date duedate;
+		duedate.SetDate(&rundate);
+		duedate.AdvanceHour(NumberGenerator::RandomNumber(2) + 1);
+
+		AttemptMissionEvent* ami = new AttemptMissionEvent();
+		ami->SetAgentName(agent->name);
+		ami->SetRunDate(&duedate);
+		game->GetWorld()->scheduler.ScheduleEvent(ami);
+
+	} else {
+
+		//
+		// Choose a mission based on a Normal  distribution curve, peeking at 1 or 2 difficulty
+		// levels higher than your uplink rating.
+		//
+
+		int nummissions = missions.Size();
+
+		if (nummissions > 0) {
+
+			int missionindex =
+				(int)NumberGenerator::RandomNormalNumber((float)(nummissions / 4), (float)(nummissions / 2));
+			if (missionindex < 0) {
+				missionindex = 0;
+			}
+
+			Mission* targetmission = missions.GetData(missionindex);
+			UplinkAssert(targetmission);
+
+			//
+			// Give this mission to the agent
+			// And remove it from the list of available missions
+			//
+
+			agent->GiveMission(targetmission);
+			fullist->RemoveData(missions_index.GetData(missionindex));
+
+			// Schedule an event to make the agent attempt the mission
+			// in a few hours
+
+			Date duedate;
+			duedate.SetDate(&rundate);
+			duedate.AdvanceHour(NumberGenerator::RandomNumber(4) + 1);
+
+			AttemptMissionEvent* ami = new AttemptMissionEvent();
+			ami->SetAgentName(agent->name);
+			ami->SetRunDate(&duedate);
+			game->GetWorld()->scheduler.ScheduleEvent(ami);
+		}
+	}
+
+	//
+	// Schedule this GiveMissionToNPC event again in a few hours
+	//
+
+	Date duedate;
+	duedate.SetDate(&rundate);
+	duedate.AdvanceMinute(FREQUENCY_GIVEMISSIONTONPC);
+
+	NotificationEvent* ne = new NotificationEvent();
+	ne->SetRunDate(&duedate);
+	ne->SetTYPE(NOTIFICATIONEVENT_TYPE_GIVEMISSIONTONPC);
+	game->GetWorld()->scheduler.ScheduleEvent(ne);

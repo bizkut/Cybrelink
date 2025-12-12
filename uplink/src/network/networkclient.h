@@ -11,7 +11,8 @@
 #define _included_networkclient_h
 
 #if ENABLE_NETWORK
-	#include <tcp4u.h>
+	#include "network/network_sdl.h"
+	#include "network/tcp4u_compat.h"
 #endif
 
 #include "app/uplinkobject.h"
@@ -30,7 +31,7 @@ class NetworkClient : public UplinkObject {
 
 protected:
 #if ENABLE_NETWORK
-	SOCKET socket;
+	Net::Socket* socket;
 #endif
 
 	int clienttype;

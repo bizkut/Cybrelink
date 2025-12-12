@@ -20,7 +20,7 @@
 NetworkServer::NetworkServer()
 {
 #if ENABLE_NETWORK
-	listensocket = -1;
+	listensocket = nullptr;
 #endif
 	listening = false;
 }

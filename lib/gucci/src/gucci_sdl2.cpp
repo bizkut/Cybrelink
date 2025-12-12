@@ -234,6 +234,9 @@ char* GciInitGraphics(const char* caption,
 
 	GciInitializePostGl();
 
+	// Enable text input for receiving SDL_TEXTINPUT events (proper character handling)
+	SDL_StartTextInput();
+
 	return NULL;
 }
 
@@ -429,13 +432,33 @@ void GciMainLoop()
 					}
 				}
 
+				// Handle special keys (F1-F12, etc)
 				if (keycode == 0) {
 					if (gciSpecialHandlerP) {
 						(*gciSpecialHandlerP)(sdlKeyToGucci(event.key.keysym.sym), x, y);
 					}
-				} else {
+				}
+				// Handle control keys (backspace, enter, escape, etc) - don't let SDL_TEXTINPUT handle these
+				else if (keycode == SDLK_BACKSPACE || keycode == SDLK_RETURN || keycode == SDLK_ESCAPE
+						 || keycode == SDLK_TAB || keycode == SDLK_DELETE || keycode == SDLK_HOME
+						 || keycode == SDLK_END || keycode == SDLK_LEFT || keycode == SDLK_RIGHT
+						 || keycode == SDLK_UP || keycode == SDLK_DOWN) {
 					if (gciKeyboardHandlerP) {
 						(*gciKeyboardHandlerP)((unsigned char)keycode, x, y);
+					}
+				}
+				// Regular printable characters will be handled by SDL_TEXTINPUT
+			} break;
+			case SDL_TEXTINPUT: {
+				// Handle text input - this properly handles shift, caps, etc.
+				int x, y;
+				SDL_GetMouseState(&x, &y);
+
+				// Process each character in the input (usually just one)
+				for (int i = 0; event.text.text[i] != '\0'; i++) {
+					unsigned char ch = (unsigned char)event.text.text[i];
+					if (gciKeyboardHandlerP && ch >= 32 && ch < 127) {
+						(*gciKeyboardHandlerP)(ch, x, y);
 					}
 				}
 			} break;

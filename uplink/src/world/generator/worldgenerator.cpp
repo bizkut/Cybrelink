@@ -731,7 +731,7 @@ void WorldGenerator::GenerateUplinkPublicAccessServer()
 	dlg3->SetMainTitle("Uplink Registration");
 	dlg3->SetSubTitle("Create your agent profile");
 	dlg3->AddWidget(
-		"name", WIDGET_BASIC, 80, 140, 170, 20, "Enter your name", "Enter the name you wish to use");
+		"name", WIDGET_BASIC, 80, 140, 170, 20, "Enter your email", "Enter your email address");
 	dlg3->AddWidget("password",
 					WIDGET_BASIC,
 					80,
@@ -743,7 +743,7 @@ void WorldGenerator::GenerateUplinkPublicAccessServer()
 	dlg3->AddWidget(
 		"password2", WIDGET_BASIC, 80, 200, 170, 20, "Re-type your password", "For verification purposes");
 
-	dlg3->AddWidget("nametext", WIDGET_TEXTBOX, 270, 140, 170, 20, "Fill this in", "Enter your name here");
+	dlg3->AddWidget("nametext", WIDGET_TEXTBOX, 270, 140, 170, 20, "you@email.com", "Enter your email here");
 	dlg3->AddWidget("passwordtext", WIDGET_PASSWORDBOX, 270, 170, 170, 20, "", "Enter your password here");
 	dlg3->AddWidget("passwordtext2", WIDGET_PASSWORDBOX, 270, 200, 170, 20, "", "Re-type your password here");
 
@@ -2498,7 +2498,7 @@ void WorldGenerator::GenerateStockMarket()
 	ds2->SetMainTitle(comp->name);
 	ds2->SetSubTitle("New User");
 
-	ds2->AddWidget("name", WIDGET_BASIC, 80, 180, 170, 20, "Enter your name", "This is your name");
+	ds2->AddWidget("name", WIDGET_BASIC, 80, 180, 170, 20, "Enter your email", "This is your name");
 	ds2->AddWidget("password",
 				   WIDGET_BASIC,
 				   80,
@@ -2510,7 +2510,7 @@ void WorldGenerator::GenerateStockMarket()
 	ds2->AddWidget(
 		"password2", WIDGET_BASIC, 80, 240, 170, 20, "Re-type your password", "For verification purposes");
 
-	ds2->AddWidget("nametext", WIDGET_TEXTBOX, 270, 180, 170, 20, "Fill this in", "Enter your name here");
+	ds2->AddWidget("nametext", WIDGET_TEXTBOX, 270, 180, 170, 20, "you@email.com", "Enter your email here");
 	ds2->AddWidget("passwordtext", WIDGET_PASSWORDBOX, 270, 210, 170, 20, "", "Enter your password here");
 	ds2->AddWidget("passwordtext2", WIDGET_PASSWORDBOX, 270, 240, 170, 20, "", "Re-type your password here");
 
@@ -3627,7 +3627,7 @@ Computer* WorldGenerator::GeneratePublicBankServer(const char* companyname)
 	DialogScreen* ds4 = new DialogScreen();
 	ds4->SetMainTitle(companyname);
 	ds4->SetSubTitle("Create new account");
-	ds4->AddWidget("name", WIDGET_BASIC, 80, 180, 170, 20, "Enter your name", "This is your name");
+	ds4->AddWidget("name", WIDGET_BASIC, 80, 180, 170, 20, "Enter your email", "This is your name");
 	ds4->AddWidget("password",
 				   WIDGET_BASIC,
 				   80,
@@ -3639,7 +3639,7 @@ Computer* WorldGenerator::GeneratePublicBankServer(const char* companyname)
 	ds4->AddWidget(
 		"password2", WIDGET_BASIC, 80, 240, 170, 20, "Re-type your password", "For verification purposes");
 
-	ds4->AddWidget("nametext", WIDGET_TEXTBOX, 270, 180, 170, 20, "Fill this in", "Enter your name here");
+	ds4->AddWidget("nametext", WIDGET_TEXTBOX, 270, 180, 170, 20, "you@email.com", "Enter your email here");
 	ds4->AddWidget("passwordtext", WIDGET_PASSWORDBOX, 270, 210, 170, 20, "", "Enter your password here");
 	ds4->AddWidget("passwordtext2", WIDGET_PASSWORDBOX, 270, 240, 170, 20, "", "Re-type your password here");
 
@@ -3688,9 +3688,9 @@ Computer* WorldGenerator::GeneratePublicBankServer(const char* companyname)
 
 	ds7->AddWidget(
 		"s_accno_value", WIDGET_FIELDVALUE, 250, 150, 200, 15, "", "", -1, -1, "Account Number", "");
-	ds7->AddWidget("t_ip_value", WIDGET_TEXTBOX, 250, 200, 200, 15, "Fill this in", "Fill this in");
-	ds7->AddWidget("t_accno_value", WIDGET_TEXTBOX, 250, 230, 200, 15, "Fill this in", "Fill this in");
-	ds7->AddWidget("amount_value", WIDGET_TEXTBOX, 250, 280, 200, 15, "Fill this in", "Fill this in");
+	ds7->AddWidget("t_ip_value", WIDGET_TEXTBOX, 250, 200, 200, 15, "you@email.com", "you@email.com");
+	ds7->AddWidget("t_accno_value", WIDGET_TEXTBOX, 250, 230, 200, 15, "you@email.com", "you@email.com");
+	ds7->AddWidget("amount_value", WIDGET_TEXTBOX, 250, 280, 200, 15, "you@email.com", "you@email.com");
 
 	ds7->AddWidget("transfer",
 				   WIDGET_SCRIPTBUTTON,

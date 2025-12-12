@@ -1,0 +1,66 @@
+﻿	return person;
+}
+
+Agent* WorldGenerator::GenerateAgent()
+{
+
+	char name[SIZE_PERSON_NAME];
+	char handle[SIZE_AGENT_HANDLE];
+
+	UplinkStrncpy(name, NameGenerator::GeneratePersonName(), sizeof(name));
+	UplinkStrncpy(handle, NameGenerator::GenerateAgentAlias(), sizeof(handle));
+
+	Computer* comp = GeneratePersonalComputer(name);
+	UplinkAssert(comp);
+
+	Computer* phone = GenerateVoicePhoneSystem(name);
+	UplinkAssert(phone);
+
+	int age = (int)NumberGenerator::RandomNormalNumber(30, 10); // 20 - 40
+	int photo = NumberGenerator::RandomNumber(NUM_STARTING_PHOTOS + 1);
+
+	int voice = 1;
+#ifndef DEMOGAME
+	voice = NumberGenerator::RandomNumber(NUM_STARTING_VOICES) + 1;
+#endif
+
+	Agent* person = new Agent();
+	person->SetName(name);
+	person->SetHandle(handle);
+	person->SetAge(age);
+	person->SetPhotoIndex(photo);
+	person->SetVoiceIndex(voice);
+	person->SetLocalHost(comp->ip);
+	person->SetRemoteHost(comp->ip);
+	person->SetPhoneNumber(phone->ip);
+	person->rating.SetUplinkRating(
+		(int)NumberGenerator::RandomNormalNumber(AGENT_UPLINKRATINGAVERAGE, AGENT_UPLINKRATINGVARIANCE));
+
+	game->GetWorld()->CreatePerson(person);
+
+	// Create some records for this person, spread around the world-wide databases
+
+	RecordGenerator::GenerateRecords(name);
+
+	return person;
+}
+
+void WorldGenerator::UpdateSoftwareUpgrades()
+{
+
+	CompanyUplink* cu = (CompanyUplink*)game->GetWorld()->GetCompany("Uplink");
+
+	if (!cu) {
+		return;
+	}
+
+	// Update the software items for sale
+
+	for (int i = 0; i < cu->sw_sales.Size(); i++) {
+		if (cu->sw_sales.ValidIndex(i)) {
+			Sale* sale = cu->sw_sales.GetData(i);
+			if (sale) {
+				delete sale;
+			}
+		}
+	}

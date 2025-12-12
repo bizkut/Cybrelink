@@ -37,7 +37,7 @@
 ClientConnection::ClientConnection()
 {
 
-	socket = -1;
+	socket = nullptr;
 
 	clienttype = CLIENT_NONE;
 	connectiontime = 0;
@@ -60,7 +60,7 @@ ClientConnection::ClientConnection()
 
 ClientConnection::~ClientConnection() { }
 
-void ClientConnection::SetSocket(SOCKET newsocket) { socket = newsocket; }
+void ClientConnection::SetSocket(SOCKET_TYPE newsocket) { socket = newsocket; }
 
 void ClientConnection::SetClientType(int newclienttype) { clienttype = newclienttype; }
 
@@ -283,7 +283,7 @@ void ClientConnection::Handle_ClientStatusInterface()
 	//
 
 	Record* rec = RecordGenerator::GetCriminal("PLAYER");
-	char* crimrec = NULL;
+	const char* crimrec = NULL;
 	if (rec) {
 		crimrec = rec->GetField("Convictions");
 		UplinkAssert(crimrec);
@@ -503,7 +503,7 @@ void ClientConnection::Print()
 void ClientConnection::Update()
 {
 #if ENABLE_NETWORK
-	if (socket != -1) {
+	if (socket != nullptr) {
 
 		// Read any input from the client
 

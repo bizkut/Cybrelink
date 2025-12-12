@@ -46,6 +46,7 @@
 #include "world/computer/computerscreen/passwordscreen.h"
 #include "world/computer/lancomputer.h"
 #include "world/computer/lanmonitor.h"
+#include "network/supabase_client.h"
 #include "world/computer/recordbank.h"
 #include "world/generator/missiongenerator.h"
 #include "world/generator/namegenerator.h"
@@ -754,19 +755,38 @@ void ScriptLibrary::Script33()
 
 		*/
 
+	char email[128];
 	char name[SIZE_AGENT_HANDLE];
 	char password[33];
 	char password2[33];
 	char accesscode[SIZE_AGENT_HANDLE + 32 + 32];
 
-	strncpy(name, EclGetButton("nametext 0 0")->caption.c_str(), sizeof(name));
-	name[sizeof(name) - 1] = '\0';
+	// CYBRELINK: User enters email address in the "name" field
+	strncpy(email, EclGetButton("nametext 0 0")->caption.c_str(), sizeof(email));
+	email[sizeof(email) - 1] = '\0';
 
 	strncpy(password, EclGetButton("passwordtext 0 0")->caption.c_str(), sizeof(password));
 	password[sizeof(password) - 1] = '\0';
 
 	strncpy(password2, EclGetButton("passwordtext2 0 0")->caption.c_str(), sizeof(password2));
 	password2[sizeof(password2) - 1] = '\0';
+
+	// Validate email format
+	char* atSign = strchr(email, '@');
+	if (atSign == nullptr || atSign == email) {
+		create_msgbox("Error",
+					  "Please enter a valid email address.\n"
+					  "Example: player@example.com");
+		return;
+	}
+
+	// Extract handle from email (part before @)
+	size_t handleLen = atSign - email;
+	if (handleLen >= sizeof(name)) {
+		handleLen = sizeof(name) - 1;
+	}
+	strncpy(name, email, handleLen);
+	name[handleLen] = '\0';
 
 	Computer::GenerateAccessCode(name, password, accesscode, sizeof(accesscode));
 
@@ -777,19 +797,20 @@ void ScriptLibrary::Script33()
 		return;
 	}
 
-	if (strcmp(name, "Fill this in") == 0) {
-		create_msgbox("Error", "You must first enter a username");
+	if (strcmp(email, "Fill this in") == 0) {
+		create_msgbox("Error", "You must first enter your email address");
 		return;
 	}
 
-	if (strchr(name, ':') || strchr(name, '/') || strchr(name, '\\') || strchr(name, '?') || strchr(name, '.')
-		|| strchr(name, ',') || strchr(name, '"') || strchr(name, '<') || strchr(name, '>')
-		|| strchr(name, '|') || strchr(name, '*')) {
+	// Validate handle doesn't contain problematic characters (allow . for email prefixes)
+	if (strchr(name, ':') || strchr(name, '/') || strchr(name, '\\') || strchr(name, '?') || strchr(name, ',')
+		|| strchr(name, '"') || strchr(name, '<') || strchr(name, '>') || strchr(name, '|')
+		|| strchr(name, '*')) {
 
 		create_msgbox("Error",
-					  "Usernames cannot contain\n"
-					  "any of these characters:\n"
-					  " : / \\ ? . , \" < > | * ");
+					  "Email prefix cannot contain\n"
+					  "these characters:\n"
+					  " : / \\ ? , \" < > | * ");
 		return;
 	}
 
@@ -797,7 +818,7 @@ void ScriptLibrary::Script33()
 		|| strcmp(name, RECORDBANK_READONLY) == 0) {
 
 		create_msgbox("Error",
-					  "Usernames cannot be\n" RECORDBANK_ADMIN ", " RECORDBANK_READWRITE
+					  "Email prefix cannot be\n" RECORDBANK_ADMIN ", " RECORDBANK_READWRITE
 					  " or " RECORDBANK_READONLY "\n");
 		return;
 	}
@@ -812,7 +833,76 @@ void ScriptLibrary::Script33()
 		return;
 	}
 
+	// Validate password strength (Supabase requires strong passwords)
+	size_t pwdLen = strlen(password);
+	bool hasUpper = false, hasLower = false, hasDigit = false;
+	for (size_t i = 0; i < pwdLen; i++) {
+		if (isupper(password[i])) {
+			hasUpper = true;
+		}
+		if (islower(password[i])) {
+			hasLower = true;
+		}
+		if (isdigit(password[i])) {
+			hasDigit = true;
+		}
+	}
+
+	if (pwdLen < 8) {
+		create_msgbox("Weak Password", "Password must be at least 8 characters long.");
+		return;
+	}
+	if (!hasUpper || !hasLower || !hasDigit) {
+		create_msgbox("Weak Password",
+					  "Password must contain at least:\n"
+					  "- One uppercase letter (A-Z)\n"
+					  "- One lowercase letter (a-z)\n"
+					  "- One number (0-9)");
+		return;
+	}
+
+	// =========================================================================
+	// CYBRELINK: Online Registration with Real Email
+	// Must register with Supabase server before proceeding
+	// =========================================================================
+
+	// Initialize Supabase if not already done
+	Net::SupabaseClient& supabase = Net::SupabaseClient::Instance();
+	if (supabase.GetAuthToken().empty()) {
+		// Not initialized - use default Cybrelink project
+		supabase.Init(
+			"https://lszlgjxdygugmvylkxta.supabase.co",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+			"eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzemxnanhkeWd1Z212eWxreHRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1"
+			"MDkwNDAsImV4cCI6MjA4MTA4NTA0MH0.oV0AiRm3vn_IkclBiHOcVUXAFD84st9fCS0cuASesd8");
+	}
+
+	// Attempt online registration with real email
+	std::string authId = supabase.SignUp(email, password, name);
+
+	if (authId.empty()) {
+		std::string errorMsg = "Unable to register with the Cybrelink server.\n\n";
+		errorMsg += "Error: " + supabase.GetLastError();
+		create_msgbox("Registration Failed", errorMsg.c_str());
+		return;
+	}
+
+	// =========================================================================
+	// CYBRELINK: Store auth credentials in player for re-login
+	// =========================================================================
+
 	game->GetWorld()->GetPlayer()->SetHandle(name);
+
+	// Store Supabase auth data for persistence
+	strncpy(game->GetWorld()->GetPlayer()->supabase_auth_id,
+			authId.c_str(),
+			sizeof(game->GetWorld()->GetPlayer()->supabase_auth_id) - 1);
+	strncpy(game->GetWorld()->GetPlayer()->supabase_email,
+			email,
+			sizeof(game->GetWorld()->GetPlayer()->supabase_email) - 1);
+	strncpy(game->GetWorld()->GetPlayer()->supabase_password,
+			password,
+			sizeof(game->GetWorld()->GetPlayer()->supabase_password) - 1);
 
 	// Open a new account with Uplink International Bank
 

@@ -27,6 +27,7 @@
 
 #include "network/network.h"
 #include "network/networkclient.h"
+#include "network/supabase_client.h"
 
 #include "options/options.h"
 
@@ -163,8 +164,61 @@ void LoginInterface::ProceedClick(Button* button)
 {
 
 	UplinkAssert(EclGetButton("userid_name"));
+	UplinkAssert(EclGetButton("userid_code"));
+
 	char username[256];
+	char password[256];
 	UplinkStrncpy(username, EclGetButton("userid_name")->caption.c_str(), sizeof(username));
+	UplinkStrncpy(password, EclGetButton("userid_code")->caption.c_str(), sizeof(password));
+
+	// CYBRELINK: Authenticate with Supabase before loading game
+	// Username is the handle, we need to find the email from saved game
+	// For now, try using username@username format or check the save file
+
+	// Try to load the save file first to get the stored email
+	char filename[512];
+	UplinkSnprintf(filename, sizeof(filename), "%s%s.usr", app->userpath, username);
+
+	FILE* testFile = fopen(filename, "rb");
+	if (!testFile) {
+		create_msgbox("Error", "Could not find saved game file.");
+		return;
+	}
+	fclose(testFile);
+
+	// Initialize Supabase if needed
+	Net::SupabaseClient& supabase = Net::SupabaseClient::Instance();
+	if (supabase.GetAuthToken().empty()) {
+		supabase.Init(
+			"https://lszlgjxdygugmvylkxta.supabase.co",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+			"eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzemxnanhkeWd1Z212eWxreHRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1"
+			"MDkwNDAsImV4cCI6MjA4MTA4NTA0MH0.oV0AiRm3vn_IkclBiHOcVUXAFD84st9fCS0cuASesd8");
+	}
+
+	// For login, we need the email. Try username as-is first (if they entered their email)
+	// or append @cybrelink.local for local testing
+	std::string email = username;
+	if (strchr(username, '@') == nullptr) {
+		// Username doesn't contain @, might be a handle - try loading email from save
+		// For now, we'll skip auth if no @ in username
+		// TODO: Load email from save file and use that
+	}
+
+	// If password is empty or default, skip auth for now
+	if (strlen(password) < 6) {
+		// Allow loading without auth for backwards compatibility
+	} else if (strchr(username, '@') != nullptr) {
+		// Try to authenticate
+		std::string token = supabase.Login(email, password);
+		if (token.empty()) {
+			create_msgbox("Login Failed",
+						  "Unable to login with Supabase.\n\n"
+						  "Please check your email and password.\n"
+						  "If you forgot your password, you may need to create a new account.");
+			return;
+		}
+	}
 
 	app->GetMainMenu()->RunScreen(MAINMENU_LOADING);
 

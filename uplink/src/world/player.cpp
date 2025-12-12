@@ -30,6 +30,11 @@ Player::Player() :
 	score_peoplefucked = 0;
 	score_systemsfucked = 0;
 	score_highsecurityhacks = 0;
+
+	// CYBRELINK: Initialize Supabase auth fields
+	memset(supabase_auth_id, 0, sizeof(supabase_auth_id));
+	memset(supabase_email, 0, sizeof(supabase_email));
+	memset(supabase_password, 0, sizeof(supabase_password));
 }
 
 Player::~Player() { DeleteBTreeData(&shares); }
@@ -210,6 +215,18 @@ bool Player::Load(FILE* file)
 		return false;
 	}
 
+	// CYBRELINK: Load Supabase auth fields
+	if (!FileReadData(supabase_auth_id, sizeof(supabase_auth_id), 1, file)) {
+		// Optional field - might not exist in old save files
+		memset(supabase_auth_id, 0, sizeof(supabase_auth_id));
+	}
+	if (!FileReadData(supabase_email, sizeof(supabase_email), 1, file)) {
+		memset(supabase_email, 0, sizeof(supabase_email));
+	}
+	if (!FileReadData(supabase_password, sizeof(supabase_password), 1, file)) {
+		memset(supabase_password, 0, sizeof(supabase_password));
+	}
+
 	LoadID_END(file);
 
 	return true;
@@ -229,6 +246,11 @@ void Player::Save(FILE* file)
 	fwrite(&score_highsecurityhacks, sizeof(score_highsecurityhacks), 1, file);
 
 	SaveBTree(&shares, file);
+
+	// CYBRELINK: Save Supabase auth fields
+	fwrite(supabase_auth_id, sizeof(supabase_auth_id), 1, file);
+	fwrite(supabase_email, sizeof(supabase_email), 1, file);
+	fwrite(supabase_password, sizeof(supabase_password), 1, file);
 
 	SaveID_END(file);
 }

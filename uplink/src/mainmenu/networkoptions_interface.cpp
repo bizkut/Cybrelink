@@ -15,6 +15,7 @@
 
 #include "network/clientconnection.h"
 #include "network/network.h"
+#include "network/network_sdl.h"
 
 #include "options/options.h"
 
@@ -174,12 +175,13 @@ void NetworkOptionsInterface::Create()
 			"network_server", ServerButtonDraw, ServerButtonClick, button_click, button_highlight);
 		EclRegisterMovement("network_server", screenw - 120, screenh - 170, 500);
 
-		// Client IP address
+		// Client IP address - hardcoded to default server
 
-		EclRegisterButton(screenw - 240, screenh - 40, 230, 15, "localhost", "", "network_clienttarget");
+		EclRegisterButton(
+			screenw - 240, screenh - 40, 230, 15, Net::DEFAULT_SERVER_HOST, "", "network_clienttarget");
 		EclRegisterButtonCallbacks("network_clienttarget", textbutton_draw, NULL, NULL, button_highlight);
 		EclRegisterMovement("network_clienttarget", screenw - 240, screenh - 135, 500);
-		EclMakeButtonEditable("network_clienttarget");
+		// Note: Not making editable - uses hardcoded server address
 
 		// Network connections
 

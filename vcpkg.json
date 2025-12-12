@@ -14,6 +14,10 @@
     "cpptrace",
     "cppfs",
     "libzippp",
-    "spdlog"
+    "spdlog",
+    "sdl2-net",
+    "zstd",
+    "cpr",
+    "nlohmann-json"
   ]
 }

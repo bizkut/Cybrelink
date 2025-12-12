@@ -92,6 +92,7 @@ endfunction()
 
 add_subdirectory(lib)
 add_subdirectory(uplink)
+add_subdirectory(server)
 
 # clang-format target
 

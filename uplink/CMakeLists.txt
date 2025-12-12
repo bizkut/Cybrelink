@@ -36,8 +36,14 @@ target_sources(
 target_include_directories(uplink-game PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL2_net CONFIG REQUIRED)
+find_package(zstd CONFIG REQUIRED)
+find_package(cpr CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(cpptrace CONFIG REQUIRED)
 find_package(cppfs CONFIG REQUIRED)
+
+target_compile_definitions(uplink-game PRIVATE ENABLE_NETWORK)
 
 target_link_libraries(
   uplink-game
@@ -51,6 +57,10 @@ target_link_libraries(
           irclib
           $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
           $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+          $<IF:$<TARGET_EXISTS:SDL2_net::SDL2_net>,SDL2_net::SDL2_net,SDL2_net::SDL2_net-static>
+          $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+          cpr::cpr
+          nlohmann_json::nlohmann_json
           cpptrace::cpptrace
           cppfs::cppfs)
 

@@ -1,0 +1,52 @@
+﻿
+	} else if (key == 27) { // ======== Esc key
+
+		Button* button = EclGetHighlightedButton();
+
+		if (EclIsButtonEditable(button->name)) {
+
+			textbutton_keypress(button, key);
+
+		} else {
+
+			if (game->IsRunning()) {
+				bool escaped =
+					game->GetInterface()->GetRemoteInterface()->GetInterfaceScreen()->EscapeKeyPressed();
+			}
+		}
+
+	} else if (key == 9) { // ========= Tab key
+
+		EclHighlightNextEditableButton();
+
+	} else if (key == 96) { // backtick (`)
+
+		char screenpath[256];
+		UplinkSnprintf(screenpath, sizeof(screenpath), "%sscreenshot.bmp", app->userpath);
+
+		GciSaveScreenshot(screenpath);
+
+	} else {
+
+		Button* button = EclGetHighlightedButton();
+		if (button && EclIsButtonEditable(button->name)) {
+			textbutton_keypress(button, key);
+		}
+	}
+
+	// GciPostRedisplay();
+}
+
+void forceopenip(const char* ip)
+{
+	if (!game->IsRunning()) {
+		return;
+	}
+
+	if (game->GetWorld()->GetPlayer()->IsConnected()) {
+		game->GetWorld()->GetPlayer()->GetConnection()->Disconnect();
+		game->GetWorld()->GetPlayer()->GetConnection()->Reset();
+	}
+
+	game->GetWorld()->GetPlayer()->GetConnection()->AddVLocation(ip);
+	game->GetWorld()->GetPlayer()->GetConnection()->Connect();

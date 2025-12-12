@@ -15,7 +15,8 @@
 #include <time.h>
 
 #if ENABLE_NETWORK
-	#include <tcp4u.h>
+	#include "network/network_sdl.h"
+	#include "network/tcp4u_compat.h"
 #endif
 
 #include "network/networkclient.h"

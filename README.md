@@ -25,6 +25,30 @@ This is an Uplink mod I started to make small quality-of-life changes for things
 * Added an add all button on the top left of long lists of links (like the InterNIC browse page) that saves all of the links.
 * Added an auto-bypass button on the connection analyser page.
 
+## Multiplayer / Online Features (WIP)
+
+Cybrelink adds experimental multiplayer capabilities:
+
+### Online Registration
+* **Email-based registration** - Create accounts with real email addresses
+* **Password requirements** - Minimum 8 characters with uppercase, lowercase, and number
+* **Auto-login** - Credentials stored locally for seamless re-login
+* **Supabase backend** - Cloud-based authentication and player data storage
+
+### Dedicated Server
+* **Standalone server** (`uplink-server.exe`) for hosting multiplayer sessions
+* **SDL_net networking** - Replaced legacy TCP/IP stack
+* **Binary protocol** - Efficient packet-based communication
+
+### Running the Server
+```bash
+# Start with default Supabase project
+.\uplink-server.exe
+
+# Or specify custom Supabase credentials
+.\uplink-server.exe --url https://your-project.supabase.co --key your-anon-key
+```
+
 ## Building
 
 ### Requirements

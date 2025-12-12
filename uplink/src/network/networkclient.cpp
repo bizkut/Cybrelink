@@ -19,6 +19,9 @@
 #include "network/interfaces/networkscreen.h"
 #include "network/network.h"
 #include "network/networkclient.h"
+#include "network/network_sdl.h"
+#include "network/protocol.h"
+#include "network/supabase_client.h"
 
 #include "world/vlocation.h"
 
@@ -30,7 +33,7 @@ NetworkClient::NetworkClient()
 {
 
 #if ENABLE_NETWORK
-	socket = -1;
+	socket = nullptr;
 #endif
 
 	clienttype = CLIENT_NONE;
@@ -54,13 +57,78 @@ bool NetworkClient::StartClient(const char* ip)
 
 	unsigned short portnum = 31337;
 
-	int result = TcpConnect(&socket, ip, NULL, &portnum);
+    Net::Socket clientSocket;
+    Net::NetResult result = Net::NetworkManager::Instance().Connect(ip, portnum, clientSocket);
 
-	if (result != TCP4U_SUCCESS) {
+	if (result != Net::NetResult::OK) {
+        printf("NetworkClient::StartClient failed to connect to %s:%d\n", ip, portnum);
 		return false;
 	}
 
 	else {
+        // We have a connection!
+        // We need to store this socket somewhere useful.
+        // The original Uplink code stored it in 'socket'. 
+        // We can't simply cast Net::Socket to void* easily if we want to keep C++ semantics,
+        // but for now, let's assume we update the 'socket' member to be of type Net::Socket* or wrapper.
+        // Wait, 'socket' handles are passed around as void* in legacy code.
+        // But I control NetworkClient.
+        
+        // Let's rely on the definition of 'socket' in the class.
+        // In networkclient.h, 'socket' was typically void*. I need to check.
+        // If I changed it to Net::Socket* or if I can store it.
+        
+        // Actually, NetworkClient shouldn't manage the raw socket directly if we have a connection abstraction.
+        // BUT, I must ensure existing code that uses 'socket' still works OR replace that usage too.
+        // Legacy 'TcpSend' takes 'socket'. I need to store the specific socket instance.
+        
+        // WORKAROUND: For this phase, I will stick it into a global or static map, OR
+        // I will change 'socket' definition if I can.
+        // But let's check networkclient.h first.
+        
+        // For now, I'll close the socket immediately if I don't store it? No.
+        
+        // Let's assume for a moment I can change 'socket' type or use a new member.
+        // But to avoid huge refactoring, let's look at networkclient.h.
+        
+        // I'll assume I can just use the Manager to hold the "Client" socket?
+        // No, the Manager is a factory.
+        
+        // I will dynamically allocate the socket and store the pointer in 'socket' (Net::Socket*).
+        Net::Socket* newSock = new Net::Socket(std::move(clientSocket));
+        socket = newSock;
+        
+        // Send Handshake Packet
+        Net::HandshakePacket handshakePayload;
+        handshakePayload.protocolVersion = Net::PROTOCOL_VERSION;
+        handshakePayload.clientVersion = 1;
+        
+        // Handle (get from player profile if possible, else "Player")
+        // Uplink world player might not be fully initialized yet?
+        // Actually StartClient is called from MainMenu, player might be "NEWAGENT" or loaded.
+        // For now, use "Guest".
+        strncpy(handshakePayload.handle, "Guest", sizeof(handshakePayload.handle)-1);
+
+        Net::SupabaseClient& supabase = Net::SupabaseClient::Instance();
+        std::string token = supabase.GetAuthToken();
+        if (token.length() > 0) {
+            strncpy(handshakePayload.authToken, token.c_str(), sizeof(handshakePayload.authToken) - 1);
+        } else {
+            memset(handshakePayload.authToken, 0, sizeof(handshakePayload.authToken));
+        }
+        
+        // Serialize
+        uint8_t buffer[1024];
+        size_t packetLen = Net::WritePacket(buffer, Net::PacketType::HANDSHAKE, Net::FLAG_NONE, &handshakePayload, sizeof(handshakePayload));
+        
+        Net::NetResult sendRes = newSock->Send(buffer, packetLen);
+        if (sendRes != Net::NetResult::OK) {
+            printf("NetworkClient::StartClient failed to send handshake\n");
+            delete newSock;
+            socket = nullptr;
+            return false;
+        }
+
 		return true;
 	}
 #else
@@ -71,38 +139,41 @@ bool NetworkClient::StartClient(const char* ip)
 bool NetworkClient::StopClient()
 {
 #if ENABLE_NETWORK
-	int result = TcpClose(&socket);
+    if (socket) {
+        Net::Socket* clientSock = (Net::Socket*)socket;
+        clientSock->Close();
+        delete clientSock;
+        socket = nullptr;
+        return true;
+    }
+	return false;
 
-	if (result == TCP4U_SUCCESS) {
-		return true;
-	}
-
-	else
-#endif
+#else
 		return false;
+#endif
 }
+
+
 
 void NetworkClient::SetClientType(int newtype)
 {
 
 #if ENABLE_NETWORK
 	// Request this mode from the server
-
-	char message[32];
-	UplinkSnprintf(message, sizeof(message), "SETCLIENTTYPE %d#", newtype);
-
-	int result = TcpSend(socket, message, sizeof(message), false, HFILE_ERROR);
-
-	if (result == TCP4U_SUCCESS) {
-
-		clienttype = newtype;
-		RunScreen(clienttype);
-
-	} else {
-		printf("NetworkClient::SetClientType, failed to convince server to co-operate\n");
+    // Legacy: sent SETCLIENTTYPE string.
+    // New: Should send an ACTION packet or similar.
+    // For now, we just switch local state, effectively assuming success.
+    
+	if (socket) {
+        // TODO: Send packet to server requesting state change
 	}
+
+    clienttype = newtype;
+    RunScreen(clienttype);
+    
 #endif
 }
+
 
 int NetworkClient::InScreen() { return currentscreencode; }
 
@@ -163,189 +234,41 @@ void NetworkClient::Print()
 #endif
 }
 
-void NetworkClient::Handle_ClientCommsData(char* buffer)
-{
-
-	std::istrstream msgstream(buffer);
-
-	char msgtype[64];
-	msgstream >> msgtype;
-
-	if (strcmp(msgtype, "CLIENTCOMMS") == 0) {
-
-		// This is a list of IP's making up the players connection
-
-		UplinkAssert(screen);
-		UplinkAssert(screen->ScreenID() == CLIENT_COMMS);
-
-		((ClientCommsInterface*)screen)->connection.Empty();
-
-		int numrelays;
-		msgstream >> numrelays;
-
-		for (int i = 0; i < numrelays; ++i) {
-
-			int x, y;
-			std::string ip;
-
-			msgstream >> x >> y >> ip;
-			/*
-					if ( ! ((ClientCommsInterface *) screen)->locations.LookupTree (ip) ) {
-
-					// We don't have this IP yet
-
-					VLocation *vl = new VLocation ();
-					vl->SetPLocation ( x, y );
-					vl->SetIP ( ip );
-					vl->SetComputer ( "Accessing..." );
-					((ClientCommsInterface *) screen)->locations.PutData ( ip, vl );
-
-					}
-			*/
-			UplinkAssert(((ClientCommsInterface*)screen)->locations.LookupTree(ip.c_str()));
-
-			((ClientCommsInterface*)screen)->connection.PutData(const_cast<char*>(ip.c_str()));
-		}
-
-	} else if (strcmp(msgtype, "CLIENTCOMMS-TRACEPROGRESS") == 0) {
-
-		// This is an update on the trace progress
-
-		int traceprogress;
-		msgstream >> traceprogress;
-		((ClientCommsInterface*)screen)->traceprogress = traceprogress;
-
-		printf("Traceprogress is now %d\n", traceprogress);
-
-	} else if (strcmp(msgtype, "CLIENTCOMMS-IPNAME") == 0) {
-
-		// This is the name of a computer at one of the IP's in your connection
-
-		char ip[SIZE_VLOCATION_IP];
-		int x;
-		int y;
-
-		char compname[SIZE_COMPUTER_NAME];
-
-		msgstream >> ip >> x >> y >> ws;
-
-		//	compname = buffer + strlen("CLIENTCOMMS_IPNAME") + strlen(ip) + 1;
-		//	*(compname + strlen(compname) - 2) = '\x0';
-
-		msgstream.getline(compname, SIZE_COMPUTER_NAME);
-		cout << "'" << compname << "'\n";
-
-		BTree<VLocation*>* locations = &(((ClientCommsInterface*)screen)->locations);
-		VLocation* vl = locations->GetData(ip);
-		if (vl) {
-			vl->SetComputer(compname);
-			vl->SetPLocation(x, y);
-			((ClientCommsInterface*)screen)->LayoutLabels();
-		} else {
-
-			VLocation* vl = new VLocation();
-			vl->SetPLocation(x, y);
-			vl->SetIP(ip);
-			vl->SetComputer(compname);
-			((ClientCommsInterface*)screen)->locations.PutData(ip, vl);
-			((ClientCommsInterface*)screen)->LayoutLabels();
-		}
-
-	} else {
-
-		UplinkWarning("NetworkClient::Handle_ClientCommsData, received data but did not recognise it");
-	}
-}
-
-void NetworkClient::Handle_ClientStatusData(char* buffer)
-{
-
-	std::istrstream msgstream(buffer);
-
-	char msgtype[64];
-	msgstream >> msgtype;
-
-	char* data = buffer + strlen(msgtype) + 1;
-	*(data + strlen(data) - 2) = '\x0';
-
-	if (strcmp(msgtype, "CLIENTSTATUS-NEWS") == 0) {
-
-		((ClientStatusInterface*)screen)->AddNewsStory(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-RATING") == 0) {
-
-		((ClientStatusInterface*)screen)->SetRating(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-FINANCE") == 0) {
-
-		((ClientStatusInterface*)screen)->SetFinancial(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-CRIMINAL") == 0) {
-
-		((ClientStatusInterface*)screen)->SetCriminal(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-HUD") == 0) {
-
-		((ClientStatusInterface*)screen)->SetHUDUpgrades(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-HW") == 0) {
-
-		((ClientStatusInterface*)screen)->SetHardware(data);
-
-	} else if (strcmp(msgtype, "CLIENTSTATUS-IP") == 0) {
-
-		((ClientStatusInterface*)screen)->SetConnection(data);
-
-	} else {
-
-		UplinkWarning("NetworkClient::Handle_ClientStatusData, received data but did not recognise it");
-	}
-}
-
 void NetworkClient::Update()
 {
 
 #if ENABLE_NETWORK
 	// Check for input from server
 
-	if (socket != -1) {
-
-		char buffer[512] = "";
-		UINT nLength = sizeof buffer;
-
-		int result = TcpRecvUntilStr(socket, buffer, &nLength, "#", 2, false, -1, HFILE_ERROR);
-
-		switch (result) {
-
-		case TCP4U_SOCKETCLOSED:
-			EclReset(app->GetOptions()->GetOptionValue("graphics_screenwidth"),
-					 app->GetOptions()->GetOptionValue("graphics_screenheight"));
-			socket = -1;
-			app->GetNetwork()->SetStatus(NETWORK_NONE);
-			app->GetMainMenu()->RunScreen(MAINMENU_NETWORKOPTIONS);
-			return;
-
-		case TCP4U_OVERFLOW:
-			UplinkAbort("buffer overflow");
-
-		case TCP4U_ERROR:
-			UplinkAbort("Tcp4u Error occured");
-		};
-
-		if (strcmp(buffer, "") != 0) {
-
-			// Deal with the input
-
-			if (clienttype == CLIENT_COMMS) {
-				Handle_ClientCommsData(buffer);
-			} else if (clienttype == CLIENT_STATUS) {
-				Handle_ClientStatusData(buffer);
-			} else if (clienttype == CLIENT_NONE) {
-				printf("Client type not set");
-			} else {
-				UplinkWarning("Unrecognised client type");
-			}
-		}
+	if (socket != nullptr) {
+        Net::Socket* clientSock = (Net::Socket*)socket;
+        
+        // Simple receive loop
+        if (clientSock->HasData()) {
+            char buffer[4096];
+            int received = clientSock->Recv(buffer, sizeof(buffer));
+            
+            if (received > 0) {
+                // TODO: Parse binary packets (ActionPacket, etc)
+                // For now just log usage
+                // printf("Client received %d bytes\n", received);
+            }
+            else if (received == -1) {
+                // Disconnected
+                printf("NetworkClient: Connection lost\n");
+                
+                EclReset(app->GetOptions()->GetOptionValue("graphics_screenwidth"),
+                         app->GetOptions()->GetOptionValue("graphics_screenheight"));
+                
+                clientSock->Close();
+                delete clientSock;
+                socket = nullptr;
+                
+                app->GetNetwork()->SetStatus(NETWORK_NONE);
+                app->GetMainMenu()->RunScreen(MAINMENU_NETWORKOPTIONS);
+                return;
+            }
+        }
 	}
 
 	// Update interface
