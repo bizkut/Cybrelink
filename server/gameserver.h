@@ -42,11 +42,19 @@ struct PlayerConnection {
 	bool ready;
 	std::string authId; // Supabase user UUID (verified)
 
+	// Player profile from Supabase
+	int32_t credits;
+	int16_t uplinkRating;
+	int16_t neuromancerRating;
+
 	PlayerConnection() :
 		playerId(0),
 		agent(nullptr),
 		authenticated(false),
-		ready(false)
+		ready(false),
+		credits(0),
+		uplinkRating(0),
+		neuromancerRating(0)
 	{
 		lastActivity = std::chrono::steady_clock::now();
 		lastNetworkTick = std::chrono::steady_clock::now();
@@ -103,6 +111,19 @@ private:
 	void HandleHandshake(PlayerConnection& player, const uint8_t* data, size_t length);
 	void HandlePlayerAction(PlayerConnection& player, const uint8_t* data, size_t length);
 	void HandleChat(PlayerConnection& player, const uint8_t* data, size_t length);
+
+	// Action handlers (called by HandlePlayerAction)
+	void HandleAction_AddBounce(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_ConnectTarget(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_Disconnect(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_RunSoftware(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_BypassSecurity(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_DownloadFile(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_DeleteFile(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_DeleteLog(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_TransferMoney(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_FramePlayer(PlayerConnection& player, const Net::ActionPacket* action);
+	void HandleAction_PlaceBounty(PlayerConnection& player, const Net::ActionPacket* action);
 
 	// Player management
 	PlayerConnection* FindPlayer(uint32_t playerId);

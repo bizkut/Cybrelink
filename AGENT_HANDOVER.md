@@ -62,11 +62,19 @@ Password is **NOT** stored in:
 
 ### Phase 4: PVP Mechanics
 1. ~~**Server Auth**: Verify the `auth_token` sent in the Handshake packet against Supabase.~~ ✅ DONE
-2. **Player State**: Load `PlayerProfile` (rating, balance, hardware) from Supabase upon connection.
-3. **Gameplay Packets**: Implement `PKT_PLAYER_ACTION` handlers in `GameServer`.
-    - `AttemptMission`
-    - `TraceHacker`
-    - `FrameTarget`
+2. ~~**Player State**: Load `PlayerProfile` (rating, balance, hardware) from Supabase upon connection.~~ ✅ DONE
+3. **Gameplay Packets**: Implement `PKT_PLAYER_ACTION` handlers in `GameServer`. ⏳ IN PROGRESS
+    - Action routing framework complete (switch on ActionType)
+    - Stub handlers for: AddBounce, ConnectTarget, RunSoftware, BypassSecurity,
+      DownloadFile, DeleteFile, DeleteLog, TransferMoney, FramePlayer, PlaceBounty
+    - **TODO**: Connect handlers to existing Agent/World simulation code
+
+### ⚠️ Architecture Note: Player-NPC Parity
+Existing NPCs (`Agent` class) already behave like players - they hack, take missions, get traced.
+**Real players should use the SAME Agent class and World simulation**, not parallel systems.
+- Each connected player controls an `Agent*` in the server's `World`
+- `PLAYER_ACTION` packets should call the same Agent methods NPCs use
+- Server runs the same world simulation as client (headless)
 
 ### Phase 5: UI & Lobby
 1. **Lobby Interface**: Create a new screen (`LobbyInterface`) to list active servers/players.

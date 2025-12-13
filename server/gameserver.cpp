@@ -342,7 +342,37 @@ void GameServer::HandleHandshake(PlayerConnection& player, const uint8_t* data, 
 
 	player.authenticated = true;
 
-	// TODO: Load player profile from Supabase if authId is set
+	// Load player profile from Supabase if authId is set
+	if (!player.authId.empty()) {
+		// Need to set auth token for profile queries
+		Net::SupabaseClient::Instance().SetAuthToken(authToken);
+
+		auto profile = Net::SupabaseClient::Instance().GetPlayerProfile(player.authId);
+		if (profile.has_value()) {
+			player.credits = profile->credits;
+			player.uplinkRating = profile->uplink_rating;
+			player.neuromancerRating = profile->neuromancer_rating;
+			printf("[Server] Loaded profile for %s: credits=%d rating=%d\n",
+				   player.handle.c_str(),
+				   player.credits,
+				   player.uplinkRating);
+		} else {
+			// Profile doesn't exist yet - create default
+			printf("[Server] No profile found for %s, using defaults\n", player.handle.c_str());
+			player.credits = 3000; // PLAYER_START_BALANCE
+			player.uplinkRating = 1;
+			player.neuromancerRating = 0;
+
+			// Attempt to create profile in database
+			Net::SupabaseClient::Instance().CreatePlayerProfile(player.authId, player.handle);
+		}
+	} else {
+		// Guest player - use defaults
+		player.credits = 3000;
+		player.uplinkRating = 1;
+		player.neuromancerRating = 0;
+	}
+
 	// TODO: Create or load agent for this player
 	// TODO: Send handshake response with player ID
 	// TODO: Send initial world state
@@ -360,13 +390,66 @@ void GameServer::HandlePlayerAction(PlayerConnection& player, const uint8_t* dat
 
 	const Net::ActionPacket* action = reinterpret_cast<const Net::ActionPacket*>(data);
 
-	// TODO: Validate and apply action to world
-	// This is where server-authoritative logic prevents cheating
-
-	printf("[Server] Player %u action: type=%u target=%u\n",
+	printf("[Server] Player %u action: type=0x%02X target=%u param1=%u param2=%u\n",
 		   player.playerId,
 		   static_cast<uint8_t>(action->actionType),
-		   action->targetId);
+		   action->targetId,
+		   action->param1,
+		   action->param2);
+
+	// Route action to appropriate handler
+	switch (action->actionType) {
+	// Connection actions
+	case Net::ActionType::ADD_BOUNCE:
+		HandleAction_AddBounce(player, action);
+		break;
+	case Net::ActionType::CONNECT_TARGET:
+		HandleAction_ConnectTarget(player, action);
+		break;
+	case Net::ActionType::DISCONNECT_ALL:
+		HandleAction_Disconnect(player, action);
+		break;
+
+	// Hacking actions
+	case Net::ActionType::RUN_SOFTWARE:
+		HandleAction_RunSoftware(player, action);
+		break;
+	case Net::ActionType::BYPASS_SECURITY:
+		HandleAction_BypassSecurity(player, action);
+		break;
+
+	// File actions
+	case Net::ActionType::DOWNLOAD_FILE:
+		HandleAction_DownloadFile(player, action);
+		break;
+	case Net::ActionType::DELETE_FILE:
+		HandleAction_DeleteFile(player, action);
+		break;
+
+	// Log actions
+	case Net::ActionType::DELETE_LOG:
+		HandleAction_DeleteLog(player, action);
+		break;
+
+	// Bank actions
+	case Net::ActionType::TRANSFER_MONEY:
+		HandleAction_TransferMoney(player, action);
+		break;
+
+	// PVP actions
+	case Net::ActionType::FRAME_PLAYER:
+		HandleAction_FramePlayer(player, action);
+		break;
+	case Net::ActionType::PLACE_BOUNTY:
+		HandleAction_PlaceBounty(player, action);
+		break;
+
+	default:
+		printf("[Server] Unknown action type 0x%02X from player %u\n",
+			   static_cast<uint8_t>(action->actionType),
+			   player.playerId);
+		break;
+	}
 }
 
 void GameServer::HandleChat(PlayerConnection& player, const uint8_t* data, size_t length)
@@ -449,6 +532,118 @@ void GameServer::UpdateNPCs()
 void GameServer::ProcessMissions()
 {
 	// TODO: Check for mission completions, update ratings, etc.
+}
+
+// ============================================================================
+// Action Handlers
+// ============================================================================
+
+void GameServer::HandleAction_AddBounce(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// param1 = IP address as uint32
+	// data = IP string
+	printf("[Server] Player %u adding bounce: %s\n", player.playerId, action->data);
+	// TODO: Add to player's bounce path, validate IP exists
+}
+
+void GameServer::HandleAction_ConnectTarget(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// data = target IP string
+	printf("[Server] Player %u connecting to: %s\n", player.playerId, action->data);
+	// TODO: Initiate connection, start trace timer, etc.
+}
+
+void GameServer::HandleAction_Disconnect(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	(void)action;
+	printf("[Server] Player %u disconnecting from current target\n", player.playerId);
+	// TODO: Clear connection, stop trace, clean up
+}
+
+void GameServer::HandleAction_RunSoftware(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// param1 = software type
+	// param2 = software version
+	printf("[Server] Player %u running software type=%u ver=%u\n",
+		   player.playerId,
+		   action->param1,
+		   action->param2);
+	// TODO: Validate player owns software, execute effect
+}
+
+void GameServer::HandleAction_BypassSecurity(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// param1 = security type (proxy, firewall, monitor, etc.)
+	printf("[Server] Player %u bypassing security type=%u\n", player.playerId, action->param1);
+	// TODO: Check if player has right tools, grant access
+}
+
+void GameServer::HandleAction_DownloadFile(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// targetId = file ID
+	// data = filename
+	printf("[Server] Player %u downloading file: %s\n", player.playerId, action->data);
+	// TODO: Check access, start download, transfer data
+}
+
+void GameServer::HandleAction_DeleteFile(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// targetId = file ID
+	printf("[Server] Player %u deleting file ID=%u\n", player.playerId, action->targetId);
+	// TODO: Check permission, remove file, log action
+}
+
+void GameServer::HandleAction_DeleteLog(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// targetId = log entry ID
+	printf("[Server] Player %u deleting log ID=%u\n", player.playerId, action->targetId);
+	// TODO: Check if log is visible to player, remove it
+}
+
+void GameServer::HandleAction_TransferMoney(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// param1 = amount
+	// param2 = source account ID
+	// targetId = destination account ID
+	printf("[Server] Player %u transferring %u credits from %u to %u\n",
+		   player.playerId,
+		   action->param1,
+		   action->param2,
+		   action->targetId);
+	// TODO: Validate accounts, check balance, make transfer
+}
+
+void GameServer::HandleAction_FramePlayer(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// targetId = target player ID (to frame)
+	// param1 = crime type
+	printf("[Server] PVP: Player %u framing player %u for crime %u\n",
+		   player.playerId,
+		   action->targetId,
+		   action->param1);
+	// TODO: Plant evidence, modify logs to incriminate target player
+}
+
+void GameServer::HandleAction_PlaceBounty(PlayerConnection& player, const Net::ActionPacket* action)
+{
+	// targetId = target player ID
+	// param1 = bounty amount
+	printf("[Server] PVP: Player %u placing bounty of %u on player %u\n",
+		   player.playerId,
+		   action->param1,
+		   action->targetId);
+
+	// Validate player has funds
+	if ((int32_t)action->param1 > player.credits) {
+		printf("[Server] Player %u has insufficient funds for bounty\n", player.playerId);
+		return;
+	}
+
+	// Deduct from player
+	player.credits -= action->param1;
+
+	// TODO: Add bounty to target player in database
+	// TODO: Notify target player of bounty
 }
 
 // ============================================================================
