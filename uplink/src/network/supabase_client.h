@@ -7,7 +7,6 @@
 #include <optional>
 
 // Forward declarations
-// Forward declarations
 // nlohmann::json is a typedef, do not forward declare as class
 
 namespace Net {
@@ -20,6 +19,32 @@ struct PlayerProfile {
 	int16_t uplink_rating;
 	int16_t neuromancer_rating;
 	// gateway_type, created_at, last_seen omitted for now
+};
+
+// World persistence structures
+struct Computer {
+	int32_t id;
+	int64_t ip;
+	std::string name;
+	int32_t company_id;
+	int16_t computer_type;
+	int16_t security_level;
+	bool is_running;
+	// state_data is bytea, handled separately if needed
+};
+
+struct Mission {
+	int32_t id;
+	int16_t mission_type;
+	int64_t target_ip;
+	int32_t employer_id;
+	std::string description;
+	int32_t payment;
+	int32_t max_payment;
+	int16_t difficulty;
+	int16_t min_rating;
+	int32_t claimed_by; // player_id or 0 if unclaimed
+	bool completed;
 };
 
 class SupabaseClient {
@@ -40,6 +65,16 @@ public:
 	std::optional<PlayerProfile> GetPlayerProfile(const std::string& authId);
 	bool CreatePlayerProfile(const std::string& authId, const std::string& handle);
 	bool UpdatePlayerProfile(const PlayerProfile& profile);
+
+	// World Persistence - Computers
+	std::vector<Computer> GetAllComputers();
+	bool UpdateComputer(const Computer& computer);
+
+	// World Persistence - Missions
+	std::vector<Mission> GetAllMissions();
+	std::vector<Mission> GetUnclaimedMissions();
+	bool UpdateMission(const Mission& mission);
+	bool ClaimMission(int32_t missionId, int32_t playerId);
 
 	// Set the auth token for subsequent requests
 	void SetAuthToken(const std::string& token) { m_authToken = token; }

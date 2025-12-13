@@ -15,6 +15,8 @@
 	#include "network/tcp4u_compat.h"
 	#include <vector>
 	#include <string>
+	#include <thread>
+	#include <atomic>
 #endif
 
 #include "app/uplinkobject.h"
@@ -27,6 +29,9 @@ class NetworkScreen;
 #define CLIENT_COMMS 1
 #define CLIENT_STATUS 2
 
+// Connection state for async connections
+enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, FAILED };
+
 // ============================================================================
 
 class NetworkClient : public UplinkObject {
@@ -35,6 +40,11 @@ protected:
 #if ENABLE_NETWORK
 	Net::Socket* socket;
 	std::vector<uint8_t> m_recvBuffer;
+
+	// Async connection state
+	std::atomic<ConnectionState> m_connectionState;
+	std::string m_pendingHost;
+	std::thread m_connectThread;
 #endif
 
 	int clienttype;
@@ -50,8 +60,17 @@ public:
 	NetworkClient();
 	virtual ~NetworkClient();
 
+	// Async connection - returns immediately, check IsConnected()/GetConnectionState()
+	bool StartClientAsync(const char* ip);
+
+	// Blocking connection (legacy)
 	bool StartClient(const char* ip);
 	bool StopClient();
+
+	// Connection status
+	ConnectionState GetConnectionState() const;
+	bool IsConnected() const;
+	bool IsConnecting() const;
 
 	void SetClientType(int newtype);
 

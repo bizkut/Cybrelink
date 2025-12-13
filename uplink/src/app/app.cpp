@@ -33,6 +33,8 @@
 
 #include "mainmenu/mainmenu.h"
 #include "network/network.h"
+#include "network/networkclient.h"
+#include "network/supabase_client.h"
 
 #include "world/generator/worldgenerator.h"
 #include "world/player.h"
@@ -324,6 +326,24 @@ void App::LoadGame(char* username)
 			game->GetInterface()->GetRemoteInterface()->RunNewLocation();
 			game->GetInterface()->GetRemoteInterface()->RunScreen(3);
 		}
+
+		// CYBRELINK: Auto-connect to multiplayer server after game loads (ASYNC)
+#ifdef ENABLE_NETWORK
+		// Only connect if we have an auth token (logged in)
+		if (!Net::SupabaseClient::Instance().GetAuthToken().empty()) {
+			// Default server address (can be made configurable later)
+			const char* serverAddress = "127.0.0.1"; // TODO: Read from config
+
+			printf("[Cybrelink] Auto-connecting to server (async): %s\n", serverAddress);
+
+			// Start async connection - doesn't block, game continues
+			if (network->GetClient()) {
+				network->GetClient()->StartClientAsync(serverAddress);
+				// Connection happens in background thread
+				// Check network->GetClient()->IsConnected() later to verify
+			}
+		}
+#endif
 
 	} else { // This is a Game Over game
 

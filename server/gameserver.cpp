@@ -6,6 +6,7 @@
 #include "network/supabase_client.h"
 
 #include <cstdio>
+#include <ctime>
 #include <thread>
 #include <algorithm>
 
@@ -13,6 +14,16 @@
 // #include "world/agent.h"
 
 namespace Server {
+
+// Helper to get formatted timestamp for logging
+static const char* GetTimestamp()
+{
+	static char buffer[32];
+	time_t now = time(nullptr);
+	struct tm* timeinfo = localtime(&now);
+	strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
+	return buffer;
+}
 
 // ============================================================================
 // GameServer Implementation
@@ -201,8 +212,12 @@ void GameServer::AcceptConnections()
 	player.socket = std::move(*newSocket);
 	delete newSocket;
 
-	printf(
-		"[Server] New connection: Player %u from %s\n", player.playerId, player.socket.GetRemoteIP().c_str());
+	printf("[%s] CONNECT: Player #%u from %s (total: %zu/%d)\n",
+		   GetTimestamp(),
+		   player.playerId,
+		   player.socket.GetRemoteIP().c_str(),
+		   m_players.size() + 1,
+		   m_config.maxPlayers);
 
 	m_players.push_back(std::move(player));
 }
@@ -316,25 +331,28 @@ void GameServer::HandleHandshake(PlayerConnection& player, const uint8_t* data, 
 		std::string authId = Net::SupabaseClient::Instance().VerifyToken(authToken);
 
 		if (authId.empty()) {
-			printf("[Server] Player %u failed token verification\n", player.playerId);
+			printf("[%s] AUTH FAIL: Player #%u - invalid token\n", GetTimestamp(), player.playerId);
 			DisconnectPlayer(player, "Invalid or expired auth token");
 			return;
 		}
 
 		player.authId = authId;
-		printf("[Server] Player %u verified: handle='%s' authId='%s'\n",
+		printf("[%s] AUTH OK: Player #%u '%s' verified (id: %.8s...)\n",
+			   GetTimestamp(),
 			   player.playerId,
 			   player.handle.c_str(),
 			   authId.c_str());
 	} else if (authToken.empty()) {
 		// No token provided - allow as guest for now (can be made stricter)
-		printf("[Server] Player %u connected as guest (no token): '%s'\n",
+		printf("[%s] AUTH GUEST: Player #%u '%s' (no token)\n",
+			   GetTimestamp(),
 			   player.playerId,
 			   player.handle.c_str());
 		player.authId = "";
 	} else {
 		// Supabase not configured - trust the handle
-		printf("[Server] Player %u authenticated (Supabase disabled): '%s'\n",
+		printf("[%s] AUTH SKIP: Player #%u '%s' (Supabase disabled)\n",
+			   GetTimestamp(),
 			   player.playerId,
 			   player.handle.c_str());
 		player.authId = "";
@@ -474,7 +492,12 @@ PlayerConnection* GameServer::FindPlayer(uint32_t playerId)
 
 void GameServer::DisconnectPlayer(PlayerConnection& player, const char* reason)
 {
-	printf("[Server] Disconnecting player %u: %s\n", player.playerId, reason);
+	printf("[%s] DISCONNECT: Player #%u '%s' - %s (remaining: %zu)\n",
+		   GetTimestamp(),
+		   player.playerId,
+		   player.handle.empty() ? "(unknown)" : player.handle.c_str(),
+		   reason,
+		   m_players.size() - 1);
 
 	// Save player state to Supabase
 	if (player.authenticated) {
@@ -484,7 +507,7 @@ void GameServer::DisconnectPlayer(PlayerConnection& player, const char* reason)
 		// profile.credits = player.agent->GetBalance(); // Stub
 
 		// Net::SupabaseClient::Instance().UpdatePlayerProfile(profile);
-		printf("[Server] Would save player state for %s\n", player.handle.c_str());
+		printf("[%s] SAVE: Saving state for '%s'\n", GetTimestamp(), player.handle.c_str());
 	}
 
 	player.socket.Close();

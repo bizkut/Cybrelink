@@ -76,9 +76,20 @@ Existing NPCs (`Agent` class) already behave like players - they hack, take miss
 - `PLAYER_ACTION` packets should call the same Agent methods NPCs use
 - Server runs the same world simulation as client (headless)
 
-### Phase 5: UI & Lobby
-1. **Lobby Interface**: Create a new screen (`LobbyInterface`) to list active servers/players.
-2. **Matchmaking**: Simple matchmaking screen to find opponents.
+### Phase 5: Single Persistent World
+**NO LOBBY NEEDED** - One world, auto-connect after login.
+1. ~~**Auto-connect**: After login, automatically connect to the server~~ ✅ DONE
+    - Client uses `StartClientAsync()` for non-blocking connection
+    - Server logs with timestamps: `[HH:MM:SS] CONNECT/DISCONNECT/AUTH`
+2. ~~**Async Networking**~~ ✅ DONE
+    - `ConnectionState` enum: DISCONNECTED → CONNECTING → CONNECTED → FAILED
+    - Background thread connection, game doesn't freeze
+3. ~~**World Persistence API**~~ ✅ DONE
+    - `Computer` and `Mission` structs in `supabase_client.h`
+    - Methods: `GetAllComputers()`, `GetAllMissions()`, `UpdateComputer()`, `ClaimMission()`
+4. **Next**: Server loads world from Supabase on startup, periodic saves
+5. **Online players overlay**: Show connected players in HUD
+6. **Chat system**: Implement `PLAYER_CHAT` handling
 
 ## 6. Build Commands
 ```powershell

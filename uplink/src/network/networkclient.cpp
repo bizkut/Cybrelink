@@ -36,6 +36,7 @@ NetworkClient::NetworkClient()
 
 #if ENABLE_NETWORK
 	socket = nullptr;
+	m_connectionState = ConnectionState::DISCONNECTED;
 #endif
 
 	clienttype = CLIENT_NONE;
@@ -45,6 +46,13 @@ NetworkClient::NetworkClient()
 
 NetworkClient::~NetworkClient()
 {
+
+#if ENABLE_NETWORK
+	// Wait for any pending connection thread
+	if (m_connectThread.joinable()) {
+		m_connectThread.join();
+	}
+#endif
 
 	if (screen) {
 		delete screen;
@@ -140,18 +148,124 @@ bool NetworkClient::StartClient(const char* ip)
 #endif
 }
 
+bool NetworkClient::StartClientAsync(const char* ip)
+{
+#if ENABLE_NETWORK
+	// Don't start if already connecting
+	if (m_connectionState == ConnectionState::CONNECTING) {
+		return false;
+	}
+
+	// Clean up old connection if any
+	StopClient();
+
+	m_connectionState = ConnectionState::CONNECTING;
+	m_pendingHost = ip;
+
+	// Start connection in background thread
+	if (m_connectThread.joinable()) {
+		m_connectThread.join();
+	}
+
+	m_connectThread = std::thread([this]() {
+		printf("[NetworkClient] Async connecting to %s...\n", m_pendingHost.c_str());
+
+		unsigned short portnum = 31337;
+		Net::Socket clientSocket;
+		Net::NetResult result = Net::NetworkManager::Instance().Connect(m_pendingHost, portnum, clientSocket);
+
+		if (result != Net::NetResult::OK) {
+			printf("[NetworkClient] Async connection failed to %s\n", m_pendingHost.c_str());
+			m_connectionState = ConnectionState::FAILED;
+			return;
+		}
+
+		// Store socket
+		Net::Socket* newSock = new Net::Socket(std::move(clientSocket));
+		socket = newSock;
+
+		// Send Handshake Packet
+		Net::HandshakePacket handshakePayload;
+		handshakePayload.protocolVersion = Net::PROTOCOL_VERSION;
+		handshakePayload.clientVersion = 1;
+		strncpy(handshakePayload.handle, "Guest", sizeof(handshakePayload.handle) - 1);
+
+		Net::SupabaseClient& supabase = Net::SupabaseClient::Instance();
+		std::string token = supabase.GetAuthToken();
+		if (token.length() > 0) {
+			strncpy(handshakePayload.authToken, token.c_str(), sizeof(handshakePayload.authToken) - 1);
+		} else {
+			memset(handshakePayload.authToken, 0, sizeof(handshakePayload.authToken));
+		}
+
+		uint8_t buffer[1024];
+		size_t packetLen = Net::WritePacket(
+			buffer, Net::PacketType::HANDSHAKE, Net::FLAG_NONE, &handshakePayload, sizeof(handshakePayload));
+
+		Net::NetResult sendRes = newSock->Send(buffer, packetLen);
+		if (sendRes != Net::NetResult::OK) {
+			printf("[NetworkClient] Async connection: handshake failed\n");
+			delete newSock;
+			socket = nullptr;
+			m_connectionState = ConnectionState::FAILED;
+			return;
+		}
+
+		printf("[NetworkClient] Async connection successful!\n");
+		m_connectionState = ConnectionState::CONNECTED;
+	});
+
+	return true;
+#else
+	return false;
+#endif
+}
+
 bool NetworkClient::StopClient()
 {
 #if ENABLE_NETWORK
+	// Wait for connection thread if running
+	if (m_connectThread.joinable()) {
+		m_connectThread.join();
+	}
+
 	if (socket) {
 		Net::Socket* clientSock = (Net::Socket*)socket;
 		clientSock->Close();
 		delete clientSock;
 		socket = nullptr;
-		return true;
 	}
-	return false;
 
+	m_connectionState = ConnectionState::DISCONNECTED;
+	return true;
+
+#else
+	return false;
+#endif
+}
+
+ConnectionState NetworkClient::GetConnectionState() const
+{
+#if ENABLE_NETWORK
+	return m_connectionState.load();
+#else
+	return ConnectionState::DISCONNECTED;
+#endif
+}
+
+bool NetworkClient::IsConnected() const
+{
+#if ENABLE_NETWORK
+	return m_connectionState.load() == ConnectionState::CONNECTED;
+#else
+	return false;
+#endif
+}
+
+bool NetworkClient::IsConnecting() const
+{
+#if ENABLE_NETWORK
+	return m_connectionState.load() == ConnectionState::CONNECTING;
 #else
 	return false;
 #endif

@@ -224,4 +224,204 @@ std::string SupabaseClient::VerifyToken(const std::string& token)
 	return "";
 }
 
+// ============================================================================
+// World Persistence - Computers
+// ============================================================================
+
+std::vector<Computer> SupabaseClient::GetAllComputers()
+{
+	std::vector<Computer> computers;
+	if (m_url.empty()) {
+		return computers;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/computers?select=*";
+
+	cpr::Response r = cpr::Get(
+		cpr::Url { endpoint },
+		cpr::Header { { "apikey", m_anonKey },
+					  { "Authorization", "Bearer " + (m_authToken.empty() ? m_anonKey : m_authToken) } },
+		cpr::VerifySsl { false },
+		cpr::Timeout { 5000 });
+
+	if (r.status_code == 200) {
+		try {
+			auto j = json::parse(r.text);
+			for (const auto& item : j) {
+				Computer c;
+				c.id = item.value("id", 0);
+				c.ip = item.value("ip", 0LL);
+				c.name = item.value("name", "");
+				c.company_id = item.value("company_id", 0);
+				c.computer_type = item.value("computer_type", 0);
+				c.security_level = item.value("security_level", 0);
+				c.is_running = item.value("is_running", true);
+				computers.push_back(c);
+			}
+			printf("[Supabase] Loaded %zu computers\n", computers.size());
+		} catch (const std::exception& e) {
+			std::cerr << "[Supabase] GetAllComputers parse error: " << e.what() << std::endl;
+		}
+	} else {
+		std::cerr << "[Supabase] GetAllComputers failed: " << r.status_code << std::endl;
+	}
+
+	return computers;
+}
+
+bool SupabaseClient::UpdateComputer(const Computer& computer)
+{
+	if (m_url.empty()) {
+		return false;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/computers?id=eq." + std::to_string(computer.id);
+
+	json payload = { { "security_level", computer.security_level }, { "is_running", computer.is_running } };
+
+	cpr::Response r = cpr::Patch(cpr::Url { endpoint },
+								 cpr::Header { { "apikey", m_anonKey },
+											   { "Authorization", "Bearer " + m_authToken },
+											   { "Content-Type", "application/json" },
+											   { "Prefer", "return=minimal" } },
+								 cpr::Body { payload.dump() },
+								 cpr::VerifySsl { false },
+								 cpr::Timeout { 5000 });
+
+	return r.status_code == 200 || r.status_code == 204;
+}
+
+// ============================================================================
+// World Persistence - Missions
+// ============================================================================
+
+std::vector<Mission> SupabaseClient::GetAllMissions()
+{
+	std::vector<Mission> missions;
+	if (m_url.empty()) {
+		return missions;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/missions?select=*";
+
+	cpr::Response r = cpr::Get(
+		cpr::Url { endpoint },
+		cpr::Header { { "apikey", m_anonKey },
+					  { "Authorization", "Bearer " + (m_authToken.empty() ? m_anonKey : m_authToken) } },
+		cpr::VerifySsl { false },
+		cpr::Timeout { 5000 });
+
+	if (r.status_code == 200) {
+		try {
+			auto j = json::parse(r.text);
+			for (const auto& item : j) {
+				Mission m;
+				m.id = item.value("id", 0);
+				m.mission_type = item.value("mission_type", 0);
+				m.target_ip = item.value("target_ip", 0LL);
+				m.employer_id = item.value("employer_id", 0);
+				m.description = item.value("description", "");
+				m.payment = item.value("payment", 0);
+				m.max_payment = item.value("max_payment", 0);
+				m.difficulty = item.value("difficulty", 0);
+				m.min_rating = item.value("min_rating", 0);
+				m.claimed_by = item.value("claimed_by", 0);
+				m.completed = item.value("completed", false);
+				missions.push_back(m);
+			}
+			printf("[Supabase] Loaded %zu missions\n", missions.size());
+		} catch (const std::exception& e) {
+			std::cerr << "[Supabase] GetAllMissions parse error: " << e.what() << std::endl;
+		}
+	}
+
+	return missions;
+}
+
+std::vector<Mission> SupabaseClient::GetUnclaimedMissions()
+{
+	std::vector<Mission> missions;
+	if (m_url.empty()) {
+		return missions;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/missions?claimed_by=is.null&completed=eq.false";
+
+	cpr::Response r = cpr::Get(
+		cpr::Url { endpoint },
+		cpr::Header { { "apikey", m_anonKey },
+					  { "Authorization", "Bearer " + (m_authToken.empty() ? m_anonKey : m_authToken) } },
+		cpr::VerifySsl { false },
+		cpr::Timeout { 5000 });
+
+	if (r.status_code == 200) {
+		try {
+			auto j = json::parse(r.text);
+			for (const auto& item : j) {
+				Mission m;
+				m.id = item.value("id", 0);
+				m.mission_type = item.value("mission_type", 0);
+				m.target_ip = item.value("target_ip", 0LL);
+				m.description = item.value("description", "");
+				m.payment = item.value("payment", 0);
+				m.difficulty = item.value("difficulty", 0);
+				m.min_rating = item.value("min_rating", 0);
+				m.claimed_by = 0;
+				m.completed = false;
+				missions.push_back(m);
+			}
+		} catch (...) {
+		}
+	}
+
+	return missions;
+}
+
+bool SupabaseClient::UpdateMission(const Mission& mission)
+{
+	if (m_url.empty()) {
+		return false;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/missions?id=eq." + std::to_string(mission.id);
+
+	json payload = { { "completed", mission.completed } };
+	if (mission.claimed_by > 0) {
+		payload["claimed_by"] = mission.claimed_by;
+	}
+
+	cpr::Response r = cpr::Patch(cpr::Url { endpoint },
+								 cpr::Header { { "apikey", m_anonKey },
+											   { "Authorization", "Bearer " + m_authToken },
+											   { "Content-Type", "application/json" },
+											   { "Prefer", "return=minimal" } },
+								 cpr::Body { payload.dump() },
+								 cpr::VerifySsl { false },
+								 cpr::Timeout { 5000 });
+
+	return r.status_code == 200 || r.status_code == 204;
+}
+
+bool SupabaseClient::ClaimMission(int32_t missionId, int32_t playerId)
+{
+	if (m_url.empty()) {
+		return false;
+	}
+
+	std::string endpoint = m_url + "/rest/v1/missions?id=eq." + std::to_string(missionId);
+
+	json payload = { { "claimed_by", playerId } };
+
+	cpr::Response r = cpr::Patch(cpr::Url { endpoint },
+								 cpr::Header { { "apikey", m_anonKey },
+											   { "Authorization", "Bearer " + m_authToken },
+											   { "Content-Type", "application/json" },
+											   { "Prefer", "return=minimal" } },
+								 cpr::Body { payload.dump() },
+								 cpr::VerifySsl { false },
+								 cpr::Timeout { 5000 });
+
+	return r.status_code == 200 || r.status_code == 204;
+}
+
 } // namespace Net
