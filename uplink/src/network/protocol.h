@@ -179,6 +179,12 @@ struct TimeSyncPacket {
 	float gameSpeed; // Server game speed multiplier
 };
 
+struct ChatPacket {
+	char sender[32]; // Player handle who sent the message
+	char channel[16]; // "global", "team", "whisper"
+	char message[256]; // Chat message content
+};
+
 #pragma pack(pop)
 
 // Note: Network constants (DEFAULT_PORT, PROTOCOL_VERSION, TICK_RATE_HZ, etc.)

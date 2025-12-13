@@ -479,8 +479,41 @@ void GameServer::HandleChat(PlayerConnection& player, const uint8_t* data, size_
 		return;
 	}
 
-	// TODO: Parse chat message and broadcast to all players
-	printf("[Server] Chat from player %u\n", player.playerId);
+	if (length < sizeof(Net::PacketHeader) + sizeof(Net::ChatPacket)) {
+		printf("[%s] CHAT: Invalid packet size from %u\n", GetTimestamp(), player.playerId);
+		return;
+	}
+
+	const Net::ChatPacket* incoming =
+		reinterpret_cast<const Net::ChatPacket*>(data + sizeof(Net::PacketHeader));
+
+	// Sanitize message (ensure null termination)
+	char message[256];
+	strncpy(message, incoming->message, sizeof(message) - 1);
+	message[sizeof(message) - 1] = '\0';
+
+	// Log the chat
+	printf("[%s] CHAT: [%s] %s: %s\n", GetTimestamp(), incoming->channel, player.handle.c_str(), message);
+
+	// Create outgoing chat packet with server-verified sender
+	Net::ChatPacket outgoing;
+	strncpy(outgoing.sender, player.handle.c_str(), sizeof(outgoing.sender) - 1);
+	outgoing.sender[sizeof(outgoing.sender) - 1] = '\0';
+	strncpy(outgoing.channel, incoming->channel, sizeof(outgoing.channel) - 1);
+	outgoing.channel[sizeof(outgoing.channel) - 1] = '\0';
+	strncpy(outgoing.message, message, sizeof(outgoing.message) - 1);
+	outgoing.message[sizeof(outgoing.message) - 1] = '\0';
+
+	// Serialize and broadcast to all authenticated players
+	uint8_t buffer[512];
+	size_t packetLen =
+		Net::WritePacket(buffer, Net::PacketType::PLAYER_CHAT, Net::FLAG_NONE, &outgoing, sizeof(outgoing));
+
+	for (auto& p : m_players) {
+		if (p.authenticated && p.socket.IsValid()) {
+			p.socket.Send(buffer, packetLen);
+		}
+	}
 }
 
 PlayerConnection* GameServer::FindPlayer(uint32_t playerId)

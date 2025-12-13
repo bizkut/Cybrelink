@@ -396,7 +396,17 @@ void NetworkClient::Update()
 						}
 						break;
 					}
-					// TODO: Other packets
+					case Net::PacketType::PLAYER_CHAT: {
+						if (header.length >= sizeof(Net::ChatPacket)) {
+							const Net::ChatPacket* chat = reinterpret_cast<const Net::ChatPacket*>(payload);
+
+							// Log to console (later: display in UI)
+							printf("[CHAT] [%s] %s: %s\n", chat->channel, chat->sender, chat->message);
+
+							// TODO: Add to in-game chat UI display
+						}
+						break;
+					}
 					default:
 						break;
 					}
