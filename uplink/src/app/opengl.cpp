@@ -428,19 +428,33 @@ void keyboard(unsigned char key, int x, int y)
 			}
 		}
 
-	} else if (key == 27) { // ======== Esc key
+		} else if (key == 27) { // ======== Esc key - CYBRELINK: Added quit confirmation
 
 		Button* button = EclGetHighlightedButton();
 
-		if (EclIsButtonEditable(button->name)) {
+		if (button && EclIsButtonEditable(button->name)) {
 
 			textbutton_keypress(button, key);
 
 		} else {
-
+			
+			bool handled = false;
 			if (game->IsRunning()) {
-				bool escaped =
-					game->GetInterface()->GetRemoteInterface()->GetInterfaceScreen()->EscapeKeyPressed();
+				handled = game->GetInterface()->GetRemoteInterface()->GetInterfaceScreen()->EscapeKeyPressed();
+			}
+			
+			if (!handled && !isvisible_msgbox()) {
+				create_yesnomsgbox("Quit Game?", 
+					"Are you sure you want to quit?\n"
+					"Your game will be saved.",
+					[](Button*) {
+						if (game->IsRunning()) {
+							app->SaveGame(game->GetWorld()->GetPlayer()->handle);
+						}
+						remove_msgbox();
+						app->Close();
+					},
+					[](Button*) { remove_msgbox(); });
 			}
 		}
 
