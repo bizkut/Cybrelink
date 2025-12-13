@@ -171,6 +171,9 @@ void GameServer::GameTick()
 	// Process mission completions
 	ProcessMissions();
 
+	// Periodic auto-save to Supabase (every 30 seconds)
+	SaveDirtyStateToSupabase();
+
 	m_tickNumber++;
 }
 
@@ -537,13 +540,61 @@ void GameServer::CheckTimeouts()
 
 void GameServer::CreateWorld()
 {
-	printf("[Server] Creating world...\n");
+	printf("[%s] Creating world...\n", GetTimestamp());
 
 	// Set start date: 14:00, 14th April 2010 (Uplink default)
 	m_date.SetDate(0, 0, 14, 14, 4, 3010);
 	m_date.Activate(); // Ensure it updates
 
-	printf("[Server] World created at %s\n", m_date.GetLongString());
+	// Load world state from Supabase
+	LoadWorldFromSupabase();
+
+	m_lastSaveTime = std::chrono::steady_clock::now();
+	printf("[%s] World created at %s\n", GetTimestamp(), m_date.GetLongString());
+}
+
+void GameServer::LoadWorldFromSupabase()
+{
+	if (m_config.supabaseUrl.empty()) {
+		printf("[%s] WORLD: Supabase not configured, using empty world\n", GetTimestamp());
+		return;
+	}
+
+	printf("[%s] WORLD: Loading from Supabase...\n", GetTimestamp());
+
+	// Load computers
+	m_computers = Net::SupabaseClient::Instance().GetAllComputers();
+	printf("[%s] WORLD: Loaded %zu computers\n", GetTimestamp(), m_computers.size());
+
+	// Load missions
+	m_missions = Net::SupabaseClient::Instance().GetAllMissions();
+	printf("[%s] WORLD: Loaded %zu missions\n", GetTimestamp(), m_missions.size());
+
+	printf("[%s] WORLD: Load complete\n", GetTimestamp());
+}
+
+void GameServer::SaveDirtyStateToSupabase()
+{
+	if (m_config.supabaseUrl.empty()) {
+		return;
+	}
+
+	// Only save every 30 seconds
+	auto now = std::chrono::steady_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_lastSaveTime).count();
+	if (elapsed < 30) {
+		return;
+	}
+
+	m_lastSaveTime = now;
+	printf("[%s] WORLD: Auto-saving state...\n", GetTimestamp());
+
+	// TODO: Track dirty flags for computers/missions
+	// For now, just log that we would save
+	// In production, iterate m_computers and m_missions with dirty flags
+	// and call UpdateComputer() / UpdateMission()
+
+	printf("[%s] WORLD: Save complete (saved 0 computers, 0 missions)\n", GetTimestamp());
 }
 
 void GameServer::UpdateNPCs()

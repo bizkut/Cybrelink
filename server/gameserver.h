@@ -13,6 +13,7 @@
 
 #include "network/network_sdl.h"
 #include "network/protocol.h"
+#include "network/supabase_client.h"
 
 // Forward declarations
 class World;
@@ -132,6 +133,8 @@ private:
 
 	// World management
 	void CreateWorld();
+	void LoadWorldFromSupabase();
+	void SaveDirtyStateToSupabase();
 	void UpdateNPCs();
 	void ProcessMissions();
 
@@ -152,6 +155,11 @@ private:
 	// World (using existing Uplink world system)
 	// World* m_world;
 	ServerDate m_date;
+
+	// Persistent world state (loaded from Supabase)
+	std::vector<Net::Computer> m_computers;
+	std::vector<Net::Mission> m_missions;
+	std::chrono::steady_clock::time_point m_lastSaveTime;
 
 	// Network tick counter for delta encoding
 	uint32_t m_tickNumber;
