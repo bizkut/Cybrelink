@@ -54,6 +54,7 @@ enum class PacketType : uint8_t {
 	TRACE_UPDATE = 0x41, // Trace progress
 	MISSION_UPDATE = 0x42, // Mission taken/completed
 	TIME_SYNC = 0x43, // Server time synchronization (Server -> Client)
+	PLAYER_LIST = 0x44, // Online players list (Server -> Client)
 
 	// Logging/Debug
 	LOG_ENTRY = 0xF0,
@@ -183,6 +184,17 @@ struct ChatPacket {
 	char sender[32]; // Player handle who sent the message
 	char channel[16]; // "global", "team", "whisper"
 	char message[256]; // Chat message content
+};
+
+struct PlayerListEntry {
+	uint32_t playerId;
+	char handle[32];
+	int16_t rating; // Uplink rating
+};
+
+struct PlayerListPacket {
+	uint8_t playerCount;
+	PlayerListEntry players[32]; // Max 32 players
 };
 
 #pragma pack(pop)

@@ -194,6 +194,9 @@ void GameServer::NetworkTick()
 		}
 	}
 
+	// Broadcast online player list (every network tick = 20Hz)
+	BroadcastPlayerList();
+
 	// Check for timeouts
 	CheckTimeouts();
 }
@@ -302,6 +305,33 @@ void GameServer::BroadcastMessage(const void* data, size_t length)
 			player.socket.Send(data, length);
 		}
 	}
+}
+
+void GameServer::BroadcastPlayerList()
+{
+	Net::PlayerListPacket packet;
+	memset(&packet, 0, sizeof(packet));
+
+	uint8_t count = 0;
+	for (const auto& player : m_players) {
+		if (player.authenticated && count < 32) {
+			packet.players[count].playerId = player.playerId;
+			strncpy(packet.players[count].handle,
+					player.handle.c_str(),
+					sizeof(packet.players[count].handle) - 1);
+			packet.players[count].rating = player.uplinkRating;
+			count++;
+		}
+	}
+	packet.playerCount = count;
+
+	// Calculate actual packet size (header + count + entries)
+	size_t dataSize = sizeof(uint8_t) + (count * sizeof(Net::PlayerListEntry));
+
+	uint8_t buffer[2048];
+	size_t len = Net::WritePacket(buffer, Net::PacketType::PLAYER_LIST, Net::FLAG_NONE, &packet, dataSize);
+
+	BroadcastMessage(buffer, len);
 }
 
 void GameServer::HandleHandshake(PlayerConnection& player, const uint8_t* data, size_t length)

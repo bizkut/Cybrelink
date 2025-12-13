@@ -407,6 +407,21 @@ void NetworkClient::Update()
 						}
 						break;
 					}
+					case Net::PacketType::PLAYER_LIST: {
+						if (header.length >= sizeof(uint8_t)) {
+							const Net::PlayerListPacket* list =
+								reinterpret_cast<const Net::PlayerListPacket*>(payload);
+
+							// Store count for later HUD display
+							// For now just log
+							if (list->playerCount > 0) {
+								printf("[NET] %u players online\n", list->playerCount);
+							}
+
+							// TODO: Store in a member var for HUD overlay
+						}
+						break;
+					}
 					default:
 						break;
 					}

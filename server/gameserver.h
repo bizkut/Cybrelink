@@ -107,6 +107,7 @@ private:
 	void ProcessIncoming(PlayerConnection& player);
 	void SendWorldDelta(PlayerConnection& player);
 	void BroadcastMessage(const void* data, size_t length);
+	void BroadcastPlayerList(); // Send online players to all clients
 
 	// Packet handlers
 	void HandleHandshake(PlayerConnection& player, const uint8_t* data, size_t length);
