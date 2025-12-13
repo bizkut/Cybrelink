@@ -36,6 +36,7 @@ class HUDInterface;
 #define SCREEN_IRC 16
 #define SCREEN_LAN 17
 #define SCREEN_MAILVIEW 18
+#define SCREEN_ONLINE 19
 
 // ============================================================================
 

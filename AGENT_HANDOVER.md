@@ -1,6 +1,6 @@
 # Cybrelink Multiplayer - Agent Handover & Context
 
-> **Last Updated:** 2025-12-13 13:52
+> **Last Updated:** 2025-12-13 15:17
 > **Current Phase:** Phase 5 (Single Persistent World)
 
 ## 1. Project Overview
@@ -88,8 +88,14 @@ Existing NPCs (`Agent` class) already behave like players - they hack, take miss
     - `Computer` and `Mission` structs in `supabase_client.h`
     - Methods: `GetAllComputers()`, `GetAllMissions()`, `UpdateComputer()`, `ClaimMission()`
 4. **Next**: Server loads world from Supabase on startup, periodic saves
-5. **Online players overlay**: Show connected players in HUD
-6. **Chat system**: Implement `PLAYER_CHAT` handling
+5. ~~**Online players overlay**~~ ✅ DONE
+    - `OnlineHUDInterface` displays connected players list
+    - Accessible via `SCREEN_ONLINE` constant
+6. ~~**Chat system**~~ ✅ DONE
+    - `PLAYER_CHAT` packets handled by NetworkClient
+    - Chat history stored in `m_chatHistory` (max 100 messages)
+    - `SendChat()` method for sending messages to server
+    - Full UI with scrollable chat area and input field
 
 ## 6. Build Commands
 ```powershell

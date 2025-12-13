@@ -51,6 +51,11 @@ Cybrelink adds experimental multiplayer capabilities:
 * **API methods** - `GetAllComputers()`, `GetAllMissions()`, `ClaimMission()`
 * **Planned** - Server loads world on startup, periodic auto-saves
 
+### Online HUD (Client)
+* **Online Players Panel** - View connected players with handles and ratings
+* **Chat System** - Real-time chat with scrollable history and input
+* Access via `SCREEN_ONLINE` in the local interface
+
 ### Running the Server
 ```bash
 # Start with default Supabase project

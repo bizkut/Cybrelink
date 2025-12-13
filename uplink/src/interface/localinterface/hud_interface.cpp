@@ -439,6 +439,9 @@ void HUDInterface::MoveSelecter(int screenID, int screenindex)
 		break;
 	case SCREEN_EVTQUEUE:
 		break;
+	case SCREEN_ONLINE:
+		HighlightToolbarButton("hud_online");
+		break;
 	case SCREEN_NONE:
 		break;
 

@@ -13,6 +13,7 @@
 #if ENABLE_NETWORK
 	#include "network/network_sdl.h"
 	#include "network/tcp4u_compat.h"
+	#include "network/protocol.h"
 	#include <vector>
 	#include <string>
 	#include <thread>
@@ -32,6 +33,14 @@ class NetworkScreen;
 // Connection state for async connections
 enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, FAILED };
 
+// Chat message structure for storage
+struct ChatDisplayMessage {
+	std::string sender;
+	std::string channel;
+	std::string message;
+	int timestamp;
+};
+
 // ============================================================================
 
 class NetworkClient : public UplinkObject {
@@ -45,6 +54,11 @@ protected:
 	std::atomic<ConnectionState> m_connectionState;
 	std::string m_pendingHost;
 	std::thread m_connectThread;
+
+	// Online players and chat storage
+	std::vector<Net::PlayerListEntry> m_onlinePlayers;
+	std::vector<ChatDisplayMessage> m_chatHistory;
+	static const size_t MAX_CHAT_HISTORY = 100;
 #endif
 
 	int clienttype;
@@ -77,6 +91,13 @@ public:
 	int InScreen(); // Returns id code of current screen
 	void RunScreen(int SCREENCODE);
 	NetworkScreen* GetNetworkScreen(); // Asserts screen
+
+	// Online players and chat accessors
+#if ENABLE_NETWORK
+	const std::vector<Net::PlayerListEntry>& GetOnlinePlayers() const { return m_onlinePlayers; }
+	const std::vector<ChatDisplayMessage>& GetChatHistory() const { return m_chatHistory; }
+	void SendChat(const char* channel, const char* message);
+#endif
 
 	// Common functions
 

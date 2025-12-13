@@ -25,6 +25,7 @@
 
 #include "world/vlocation.h"
 #include "world/world.h"
+#include "world/player.h"
 #include "game/game.h"
 
 //////////////////////////////////////////////////////////////////////
@@ -400,10 +401,21 @@ void NetworkClient::Update()
 						if (header.length >= sizeof(Net::ChatPacket)) {
 							const Net::ChatPacket* chat = reinterpret_cast<const Net::ChatPacket*>(payload);
 
-							// Log to console (later: display in UI)
+							// Log to console
 							printf("[CHAT] [%s] %s: %s\n", chat->channel, chat->sender, chat->message);
 
-							// TODO: Add to in-game chat UI display
+							// Store in chat history
+							ChatDisplayMessage msg;
+							msg.sender = chat->sender;
+							msg.channel = chat->channel;
+							msg.message = chat->message;
+							msg.timestamp = 0; // TODO: get game time
+							m_chatHistory.push_back(msg);
+
+							// Trim to max size
+							while (m_chatHistory.size() > MAX_CHAT_HISTORY) {
+								m_chatHistory.erase(m_chatHistory.begin());
+							}
 						}
 						break;
 					}
@@ -412,13 +424,15 @@ void NetworkClient::Update()
 							const Net::PlayerListPacket* list =
 								reinterpret_cast<const Net::PlayerListPacket*>(payload);
 
-							// Store count for later HUD display
-							// For now just log
+							// Store player list
+							m_onlinePlayers.clear();
+							for (uint8_t i = 0; i < list->playerCount && i < 32; ++i) {
+								m_onlinePlayers.push_back(list->players[i]);
+							}
+
 							if (list->playerCount > 0) {
 								printf("[NET] %u players online\n", list->playerCount);
 							}
-
-							// TODO: Store in a member var for HUD overlay
 						}
 						break;
 					}
@@ -457,3 +471,33 @@ void NetworkClient::Update()
 }
 
 std::string NetworkClient::GetID() { return "CLIENT"; }
+
+#if ENABLE_NETWORK
+void NetworkClient::SendChat(const char* channel, const char* message)
+{
+	if (!socket || !IsConnected()) {
+		return;
+	}
+
+	Net::Socket* clientSock = (Net::Socket*)socket;
+
+	Net::ChatPacket chatPayload;
+	memset(&chatPayload, 0, sizeof(chatPayload));
+
+	// Get player handle if available
+	if (game && game->GetWorld() && game->GetWorld()->GetPlayer()) {
+		strncpy(chatPayload.sender, game->GetWorld()->GetPlayer()->handle, sizeof(chatPayload.sender) - 1);
+	} else {
+		strncpy(chatPayload.sender, "Player", sizeof(chatPayload.sender) - 1);
+	}
+
+	strncpy(chatPayload.channel, channel, sizeof(chatPayload.channel) - 1);
+	strncpy(chatPayload.message, message, sizeof(chatPayload.message) - 1);
+
+	uint8_t buffer[512];
+	size_t packetLen = Net::WritePacket(
+		buffer, Net::PacketType::PLAYER_CHAT, Net::FLAG_NONE, &chatPayload, sizeof(chatPayload));
+
+	clientSock->Send(buffer, packetLen);
+}
+#endif
