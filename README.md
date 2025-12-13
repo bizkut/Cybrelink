@@ -29,16 +29,27 @@ This is an Uplink mod I started to make small quality-of-life changes for things
 
 Cybrelink adds experimental multiplayer capabilities:
 
+### Architecture
+* **Client-Server Model** - Dedicated server handles authoritative game state
+* **Supabase Backend** - Cloud authentication and world persistence
+* **Real-time Networking** - Async connections, game never freezes
+
 ### Online Registration
 * **Email-based registration** - Create accounts with real email addresses
 * **Password requirements** - Minimum 8 characters with uppercase, lowercase, and number
 * **Auto-login** - Credentials stored locally for seamless re-login
-* **Supabase backend** - Cloud-based authentication and player data storage
+* **JWT authentication** - Server validates tokens against Supabase
 
 ### Dedicated Server
 * **Standalone server** (`uplink-server.exe`) for hosting multiplayer sessions
 * **SDL_net networking** - Replaced legacy TCP/IP stack
 * **Binary protocol** - Efficient packet-based communication
+* **Timestamped logging** - `[HH:MM:SS] CONNECT/AUTH/DISCONNECT` events
+
+### World Persistence
+* **Supabase tables** - `computers`, `missions`, `bank_accounts`, `access_logs`
+* **API methods** - `GetAllComputers()`, `GetAllMissions()`, `ClaimMission()`
+* **Planned** - Server loads world on startup, periodic auto-saves
 
 ### Running the Server
 ```bash
@@ -65,8 +76,8 @@ The project uses CMake for building and vcpkg for dependencies. Run the followin
 cmake -S . -B out/build -G "Visual Studio 17 2022" -A x64   # For VS 2022
 cmake -S . -B out/build -G "Visual Studio 18 2026" -A x64   # For VS 2026
 
-# Build Release
-cmake --build out/build --config Release
+# Build Release (both game and server)
+cmake --build out/build --config Release --target uplink-game uplink-server
 
 # Build Debug
 cmake --build out/build --config Debug
