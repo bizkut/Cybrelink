@@ -1,0 +1,64 @@
+# Cybrelink Multiplayer - Agent Handover & Context
+
+> **Last Updated:** 2025-12-13
+> **Current Phase:** Phase 4 (PVP Mechanics) & Phase 5 (Lobby/UI)
+
+## 1. Project Overview
+We are adding multiplayer capabilities to the legacy game **Uplink**.
+- **Repo**: `Cybrelink`
+- **Architecture**: Client (OpenGL/SDL) <-> Dedicated Server (Headless) <-> Supabase (Persistence).
+- **Protocol**: Custom binary protocol over TCP (`uplink/src/network/protocol.h`).
+
+## 2. Completed Architecture (Verified)
+- **Shared Core**: Refactored logic into `uplink-core` static lib used by both Client and Server.
+- **Dedicated Server**: `uplink-server.exe` runs headless, accepts TCP connections.
+- **Network Layer**:
+    - `NetworkClient` (Client-side) handles state replication.
+    - `GameServer` (Server-side) runs authoritative simulation (60Hz tick).
+    - Delta Encoding (`deltaencoder.h`) implemented for bandwidth efficiency.
+- **Authentication**:
+    - **Supabase** via `CPR` (C++ Requests).
+    - Real email/password registration implemented (`Script33`).
+    - Auto-login via `.auth` file (locally stored credentials).
+
+## 3. Recent Bug Fixes (Phase 6 Polish)
+- **Tutorial**: Fixed `EclSuperUnHighlight` bug where it deleted buttons instead of borders.
+- **Quit Confirmation**: Added "Quit Game?" dialog for **ESC** and **F12** keys.
+    - *Note*: ESC logic cancels text edits -> closes windows -> prompts quit.
+- **Stability**: Reduced Supabase timeout to 5s and disabled SSL verify to prevent freezing.
+
+## 4. Critical Developer Notes (READ THIS)
+### ⚠️ File Encoding Warning
+**`uplink/src/app/opengl.cpp`** has standard encoding issues that confuse some tools.
+- **DO NOT** use standard text search/replace tools on this file if they fail.
+- **USE** Python scripts to read/patch this file safely (binary read -> decode -> patch -> binary write).
+
+### ⚠️ Supabase Configuration
+- SSL Verification is **DISABLED** (`verifySsl = false`) in `supabase_client.cpp` for stability.
+- Timeout is strict (**5 seconds**) to avoid blocking the main thread (UI freeze).
+
+## 5. Next Steps (Immediate Priorities)
+
+### Phase 4: PVP Mechanics
+1. **Server Auth**: Verify the `auth_token` sent in the Handshake packet against Supabase (currently trusted).
+2. **Player State**: Load `PlayerProfile` (rating, balance, hardware) from Supabase upon connection.
+3. **Gameplay Packets**: Implement `PKT_PLAYER_ACTION` handlers in `GameServer`.
+    - `AttemptMission`
+    - `TraceHacker`
+    - `FrameTarget`
+
+### Phase 5: UI & Lobby
+1. **Lobby Interface**: Create a new screen (`LobbyInterface`) to list active servers/players.
+2. **Matchmaking**: Simple matchmaking screen to find opponents.
+
+## 6. Build Commands
+```powershell
+# Build Game and Server
+cmake --build out/build --config Release --target uplink-game uplink-server
+
+# Run Server
+./out/build/uplink/bin/uplink-server.exe
+
+# Run Client
+./out/build/uplink/uplink-game.exe
+```
