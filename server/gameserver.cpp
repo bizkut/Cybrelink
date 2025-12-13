@@ -623,15 +623,11 @@ void GameServer::LoadWorldFromSupabase()
 		return;
 	}
 
-	printf("[%s] WORLD: Loading from Supabase...\n", GetTimestamp());
+	printf("[%s] WORLD: Loading from Supabase via ServerWorld...\n", GetTimestamp());
+	m_world.LoadFromSupabase();
 
-	// Load computers
-	m_computers = Net::SupabaseClient::Instance().GetAllComputers();
-	printf("[%s] WORLD: Loaded %zu computers\n", GetTimestamp(), m_computers.size());
-
-	// Load missions
-	m_missions = Net::SupabaseClient::Instance().GetAllMissions();
-	printf("[%s] WORLD: Loaded %zu missions\n", GetTimestamp(), m_missions.size());
+	// Spawn NPCs that run independently of players
+	m_world.SpawnNPCs(5);
 
 	printf("[%s] WORLD: Load complete\n", GetTimestamp());
 }
@@ -650,20 +646,15 @@ void GameServer::SaveDirtyStateToSupabase()
 	}
 
 	m_lastSaveTime = now;
-	printf("[%s] WORLD: Auto-saving state...\n", GetTimestamp());
-
-	// TODO: Track dirty flags for computers/missions
-	// For now, just log that we would save
-	// In production, iterate m_computers and m_missions with dirty flags
-	// and call UpdateComputer() / UpdateMission()
-
-	printf("[%s] WORLD: Save complete (saved 0 computers, 0 missions)\n", GetTimestamp());
+	printf("[%s] WORLD: Auto-saving state via ServerWorld...\n", GetTimestamp());
+	m_world.SaveDirtyState();
 }
 
 void GameServer::UpdateNPCs()
 {
-	// TODO: Iterate through all NPC agents and run their AI
-	// This uses the existing Agent::AttemptMission() logic
+	// Run NPC AI through ServerWorld
+	// deltaTime = 1/60 second at 60Hz tick
+	m_world.Update(1.0f / 60.0f);
 }
 
 void GameServer::ProcessMissions()

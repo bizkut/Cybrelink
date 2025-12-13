@@ -20,6 +20,7 @@ class World;
 class Agent;
 
 #include "server_date.h"
+#include "server_world.h"
 
 namespace Server {
 
@@ -153,13 +154,10 @@ private:
 	std::vector<PlayerConnection> m_players;
 	uint32_t m_nextPlayerId;
 
-	// World (using existing Uplink world system)
-	// World* m_world;
+	// Authoritative world simulation
 	ServerDate m_date;
+	ServerWorld m_world; // Manages computers, banks, missions, NPCs
 
-	// Persistent world state (loaded from Supabase)
-	std::vector<Net::Computer> m_computers;
-	std::vector<Net::Mission> m_missions;
 	std::chrono::steady_clock::time_point m_lastSaveTime;
 
 	// Network tick counter for delta encoding

@@ -9,6 +9,8 @@ target_sources(uplink-server PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/gameserver.h
     ${CMAKE_CURRENT_LIST_DIR}/server_date.cpp
     ${CMAKE_CURRENT_LIST_DIR}/server_date.h
+    ${CMAKE_CURRENT_LIST_DIR}/server_world.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/server_world.h
     # Network layer (shared with client)
     ${CMAKE_SOURCE_DIR}/uplink/src/network/network_sdl.cpp
     ${CMAKE_SOURCE_DIR}/uplink/src/network/network_sdl.h
