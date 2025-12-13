@@ -30,9 +30,9 @@ public:
 	int score_highsecurityhacks;
 
 	// CYBRELINK: Supabase authentication (stored with save game)
+	// NOTE: Password is NOT stored here - only in local .auth file for security
 	char supabase_auth_id[64]; // UUID from Supabase
 	char supabase_email[128]; // Email used for registration
-	char supabase_password[64]; // Password for auto-login
 
 public:
 	Player();

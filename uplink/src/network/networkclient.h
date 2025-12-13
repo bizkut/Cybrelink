@@ -13,6 +13,8 @@
 #if ENABLE_NETWORK
 	#include "network/network_sdl.h"
 	#include "network/tcp4u_compat.h"
+	#include <vector>
+	#include <string>
 #endif
 
 #include "app/uplinkobject.h"
@@ -32,6 +34,7 @@ class NetworkClient : public UplinkObject {
 protected:
 #if ENABLE_NETWORK
 	Net::Socket* socket;
+	std::vector<uint8_t> m_recvBuffer;
 #endif
 
 	int clienttype;

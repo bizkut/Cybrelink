@@ -32,9 +32,9 @@ Player::Player() :
 	score_highsecurityhacks = 0;
 
 	// CYBRELINK: Initialize Supabase auth fields
+	// NOTE: Password is NOT stored here - only in local .auth file
 	memset(supabase_auth_id, 0, sizeof(supabase_auth_id));
 	memset(supabase_email, 0, sizeof(supabase_email));
-	memset(supabase_password, 0, sizeof(supabase_password));
 }
 
 Player::~Player() { DeleteBTreeData(&shares); }
@@ -216,6 +216,7 @@ bool Player::Load(FILE* file)
 	}
 
 	// CYBRELINK: Load Supabase auth fields
+	// NOTE: Password is NOT saved here - only in local .auth file
 	if (!FileReadData(supabase_auth_id, sizeof(supabase_auth_id), 1, file)) {
 		// Optional field - might not exist in old save files
 		memset(supabase_auth_id, 0, sizeof(supabase_auth_id));
@@ -223,9 +224,9 @@ bool Player::Load(FILE* file)
 	if (!FileReadData(supabase_email, sizeof(supabase_email), 1, file)) {
 		memset(supabase_email, 0, sizeof(supabase_email));
 	}
-	if (!FileReadData(supabase_password, sizeof(supabase_password), 1, file)) {
-		memset(supabase_password, 0, sizeof(supabase_password));
-	}
+	// Legacy: Skip password field in old save files (64 bytes)
+	char legacyPassword[64];
+	FileReadData(legacyPassword, sizeof(legacyPassword), 1, file);
 
 	LoadID_END(file);
 
@@ -248,9 +249,12 @@ void Player::Save(FILE* file)
 	SaveBTree(&shares, file);
 
 	// CYBRELINK: Save Supabase auth fields
+	// NOTE: Password is NOT saved here - only in local .auth file for security
 	fwrite(supabase_auth_id, sizeof(supabase_auth_id), 1, file);
 	fwrite(supabase_email, sizeof(supabase_email), 1, file);
-	fwrite(supabase_password, sizeof(supabase_password), 1, file);
+	// Write empty password field for save file compatibility
+	char emptyPassword[64] = { 0 };
+	fwrite(emptyPassword, sizeof(emptyPassword), 1, file);
 
 	SaveID_END(file);
 }

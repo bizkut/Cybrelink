@@ -26,6 +26,17 @@ We are adding multiplayer capabilities to the legacy game **Uplink**.
 - **Quit Confirmation**: Added "Quit Game?" dialog for **ESC** and **F12** keys.
     - *Note*: ESC logic cancels text edits -> closes windows -> prompts quit.
 - **Stability**: Reduced Supabase timeout to 5s and disabled SSL verify to prevent freezing.
+- **Time Sync**: Implemented server->client time synchronization.
+    - Server uses standalone `ServerDate` class (`server/server_date.h`) to track game time.
+    - `TIME_SYNC` packet (`0x43`) sent at 20Hz to all authenticated clients.
+    - Client's `NetworkClient::Update()` receives and applies time to `game->GetWorld()->date`.
+- **Server Auth Verification**: Handshake now validates JWT tokens against Supabase.
+    - `SupabaseClient::VerifyToken()` calls `/auth/v1/user` endpoint.
+    - Invalid/expired tokens result in disconnection.
+    - Players without tokens connect as "guest" (can be made stricter later).
+- **Welcome Email**: Upon registration, player receives personalized email from "Uplink public access system".
+    - Contains email, handle, and bank account number (NO password).
+    - Bank uses separate random password (not the real player password).
 
 ## 4. Critical Developer Notes (READ THIS)
 ### ⚠️ File Encoding Warning
@@ -37,10 +48,20 @@ We are adding multiplayer capabilities to the legacy game **Uplink**.
 - SSL Verification is **DISABLED** (`verifySsl = false`) in `supabase_client.cpp` for stability.
 - Timeout is strict (**5 seconds**) to avoid blocking the main thread (UI freeze).
 
+### ⚠️ Password Security
+The player password is stored in **exactly two places**:
+1. **Supabase `auth.users` table** - hashed by Supabase (we don't manage this)
+2. **Local `.auth` file** - plaintext for auto-login convenience
+
+Password is **NOT** stored in:
+- Save game files (`Player` struct has no password field)
+- Any Supabase table we create (players, etc.)
+- Welcome emails or any in-game messages
+
 ## 5. Next Steps (Immediate Priorities)
 
 ### Phase 4: PVP Mechanics
-1. **Server Auth**: Verify the `auth_token` sent in the Handshake packet against Supabase (currently trusted).
+1. ~~**Server Auth**: Verify the `auth_token` sent in the Handshake packet against Supabase.~~ ✅ DONE
 2. **Player State**: Load `PlayerProfile` (rating, balance, hardware) from Supabase upon connection.
 3. **Gameplay Packets**: Implement `PKT_PLAYER_ACTION` handlers in `GameServer`.
     - `AttemptMission`

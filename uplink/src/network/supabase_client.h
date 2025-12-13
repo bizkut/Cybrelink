@@ -45,6 +45,10 @@ public:
 	void SetAuthToken(const std::string& token) { m_authToken = token; }
 	const std::string& GetAuthToken() const { return m_authToken; }
 
+	// Verify a JWT token and return the user's auth_id (UUID) if valid
+	// Returns empty string if token is invalid/expired
+	std::string VerifyToken(const std::string& token);
+
 	// Get last error message for debugging
 	const std::string& GetLastError() const { return m_lastError; }
 

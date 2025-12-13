@@ -7,6 +7,8 @@ add_executable(uplink-server)
 target_sources(uplink-server PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/gameserver.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gameserver.h
+    ${CMAKE_CURRENT_LIST_DIR}/server_date.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/server_date.h
     # Network layer (shared with client)
     ${CMAKE_SOURCE_DIR}/uplink/src/network/network_sdl.cpp
     ${CMAKE_SOURCE_DIR}/uplink/src/network/network_sdl.h
@@ -20,6 +22,8 @@ target_include_directories(uplink-server PRIVATE
     ${CMAKE_SOURCE_DIR}/uplink/src
     ${CMAKE_SOURCE_DIR}/lib/tosser/include
 )
+
+target_link_libraries(uplink-server PRIVATE tosser)
 
 # Server-specific definitions
 target_compile_definitions(uplink-server PRIVATE

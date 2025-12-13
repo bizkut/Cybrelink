@@ -889,23 +889,21 @@ void ScriptLibrary::Script33()
 
 	// =========================================================================
 	// CYBRELINK: Store auth credentials in player for re-login
+	// NOTE: Password is ONLY stored in .auth file, never in save game
 	// =========================================================================
 
 	game->GetWorld()->GetPlayer()->SetHandle(name);
 
-	// Store Supabase auth data for persistence
+	// Store Supabase auth data for persistence (NO password here!)
 	strncpy(game->GetWorld()->GetPlayer()->supabase_auth_id,
 			authId.c_str(),
 			sizeof(game->GetWorld()->GetPlayer()->supabase_auth_id) - 1);
 	strncpy(game->GetWorld()->GetPlayer()->supabase_email,
 			email,
 			sizeof(game->GetWorld()->GetPlayer()->supabase_email) - 1);
-	strncpy(game->GetWorld()->GetPlayer()->supabase_password,
-			password,
-			sizeof(game->GetWorld()->GetPlayer()->supabase_password) - 1);
 
 	// CYBRELINK: Create .auth companion file for auto-login
-	// This allows reading credentials without parsing complex binary save file
+	// Password is ONLY stored here locally, never in save game or database
 	char authFilePath[512];
 	UplinkSnprintf(authFilePath, sizeof(authFilePath), "%s%s.auth", app->userpath, name);
 	FILE* authFile = fopen(authFilePath, "w");
@@ -915,19 +913,22 @@ void ScriptLibrary::Script33()
 	}
 
 	// Open a new account with Uplink International Bank
+	// Note: Bank uses a separate password system (in-game only, not real password)
+	char bankPassword[32];
+	UplinkSnprintf(bankPassword, sizeof(bankPassword), "uplink%d", rand() % 10000);
 
 	Computer* bank = game->GetWorld()->GetComputer(NameGenerator::GenerateInternationalBankName("Uplink"));
 	UplinkAssert(bank);
-	int accno =
-		game->GetWorld()->GetPlayer()->CreateNewAccount(bank->ip, name, password, 0, PLAYER_START_BALANCE);
+	int accno = game->GetWorld()->GetPlayer()->CreateNewAccount(
+		bank->ip, name, bankPassword, 0, PLAYER_START_BALANCE);
 	game->GetWorld()->GetPlayer()->GiveLink(bank->ip);
 
 	// Store the new player's account on Uplink's computer
-
+	// Note: This is the bank password, NOT the player's real password
 	Record* record = new Record();
 	record->AddField(RECORDBANK_NAME, name);
 	record->AddField(RECORDBANK_ACCNO, accno);
-	record->AddField(RECORDBANK_PASSWORD, password);
+	record->AddField(RECORDBANK_PASSWORD, bankPassword);
 	record->AddField(RECORDBANK_SECURITY, "5");
 	record->AddField("Created", game->GetWorld()->date.GetLongString());
 	Computer* comp = game->GetWorld()->GetComputer(NAME_UPLINKINTERNALSERVICES);
@@ -942,18 +943,32 @@ void ScriptLibrary::Script33()
 	game->GetWorld()->GetPlayer()->rating.SetUplinkRating(1);
 
 	// Send notification to the player
-	//
+	// NOTE: We do NOT include the password in this email
+
+	char welcomeBody[1024];
+	UplinkSnprintf(welcomeBody,
+				   sizeof(welcomeBody),
+				   "Agent %s,\n\n"
+				   "Your registration has been processed. Congratulations, you are now "
+				   "an officially rated Uplink Agent.\n\n"
+				   "ACCOUNT DETAILS:\n"
+				   "- Email: %s\n"
+				   "- Handle: %s\n"
+				   "- Bank Account: %d at Uplink International Bank\n\n"
+				   "We recommend you complete the Uplink Test mission before attempting any real work.\n"
+				   "Your first stopping off point should be the Uplink Internal Services System. Once there, "
+				   "log in and click on 'help', followed by 'getting started'.\n\n"
+				   "Good luck, Agent.",
+				   name,
+				   email,
+				   name,
+				   accno);
 
 	Message* msg = new Message();
 	msg->SetTo("PLAYER");
 	msg->SetFrom("Uplink public access system");
 	msg->SetSubject("Welcome to Uplink");
-	msg->SetBody("Your details have been entered into our account.  Congratulations, you are now "
-				 "an officially rated Uplink Agent.\n"
-				 "We recommend you complete the Uplink Test mission before attempting any real work.\n"
-				 "Your first stopping off point should be the Uplink Internal Services System.  Once there, "
-				 "log in and click on 'help', followed by 'getting started'.\n"
-				 "Good luck.");
+	msg->SetBody(welcomeBody);
 	msg->GiveLink(IP_UPLINKINTERNALSERVICES);
 	msg->GiveCode(IP_UPLINKINTERNALSERVICES, accesscode);
 	msg->Send();

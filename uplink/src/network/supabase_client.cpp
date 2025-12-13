@@ -189,4 +189,39 @@ bool SupabaseClient::UpdatePlayerProfile(const PlayerProfile& profile)
 	}
 }
 
+std::string SupabaseClient::VerifyToken(const std::string& token)
+{
+	if (token.empty() || m_url.empty()) {
+		return "";
+	}
+
+	// Use Supabase's /auth/v1/user endpoint to validate the token
+	// This endpoint returns user info if the token is valid
+	std::string endpoint = m_url + "/auth/v1/user";
+
+	cpr::Response r = cpr::Get(cpr::Url { endpoint },
+							   cpr::Header { { "apikey", m_anonKey },
+											 { "Authorization", "Bearer " + token },
+											 { "Content-Type", "application/json" } },
+							   cpr::VerifySsl { false },
+							   cpr::Timeout { 5000 });
+
+	if (r.status_code == 200) {
+		try {
+			auto j = json::parse(r.text);
+			if (j.contains("id")) {
+				std::string authId = j["id"];
+				printf("[Supabase] Token verified for user: %s\n", authId.c_str());
+				return authId;
+			}
+		} catch (const std::exception& e) {
+			std::cerr << "[Supabase] VerifyToken JSON parse error: " << e.what() << std::endl;
+		}
+	} else {
+		std::cerr << "[Supabase] VerifyToken failed: " << r.status_code << " " << r.text << std::endl;
+	}
+
+	return "";
+}
+
 } // namespace Net
