@@ -524,11 +524,20 @@ void specialkeyboard(int key, int x, int y)
 
 #ifndef DEMOGAME
 
-	case GCI_KEY_F12: // Exit
-		if (game->IsRunning()) {
-			app->SaveGame(game->GetWorld()->GetPlayer()->handle);
+	case GCI_KEY_F12: // Exit - CYBRELINK: Added quit confirmation
+		if (!isvisible_msgbox()) {
+			create_yesnomsgbox("Quit Game?", 
+				"Are you sure you want to quit?\n"
+				"Your game will be saved.",
+				[](Button*) {
+					if (game->IsRunning()) {
+						app->SaveGame(game->GetWorld()->GetPlayer()->handle);
+					}
+					remove_msgbox();
+					app->Close();
+				},
+				[](Button*) { remove_msgbox(); });
 		}
-		app->Close();
 		break;
 
 #endif

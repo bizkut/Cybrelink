@@ -1402,27 +1402,45 @@ void create_msgbox(std::string title, std::string message, void (*closeclick)(Bu
 		EclRegisterButton(0, 0, screenw, screenh, "", "", "msgbox_background");
 		EclRegisterButtonCallbacks("msgbox_background", draw_msgboxbackground, NULL, NULL, NULL);
 
-		// Create the message box
+		// Create the message box - CYBRELINK: Made wider (350px) for error messages
+		int boxWidth = 350;
+		int boxHeight = 180;
 
-		EclRegisterButton(screenw / 2 - 100, screenh / 3, 200, 140, "", "", "msgbox_box");
+		EclRegisterButton(screenw / 2 - boxWidth / 2, screenh / 3, boxWidth, boxHeight, "", "", "msgbox_box");
 		EclRegisterButtonCallbacks("msgbox_box", draw_msgboxbox, NULL, NULL, NULL);
 
 		// Title bar
 
-		EclRegisterButton(
-			screenw / 2 - 100 + 2, screenh / 3 + 2, 195, 15, title, "Close the message box", "msgbox_title");
+		EclRegisterButton(screenw / 2 - boxWidth / 2 + 2,
+						  screenh / 3 + 2,
+						  boxWidth - 5,
+						  15,
+						  title,
+						  "Close the message box",
+						  "msgbox_title");
 		EclRegisterButtonCallback("msgbox_title", closeclick_msgbox);
 
 		// Message box
 
-		EclRegisterButton(screenw / 2 - 100 + 2, screenh / 3 + 20, 195, 80, "", "", "msgbox_text");
+		EclRegisterButton(screenw / 2 - boxWidth / 2 + 2,
+						  screenh / 3 + 20,
+						  boxWidth - 5,
+						  boxHeight - 60,
+						  "",
+						  "",
+						  "msgbox_text");
 		EclRegisterButtonCallbacks("msgbox_text", text_draw, NULL, NULL, NULL);
 		EclRegisterCaptionChange("msgbox_text", message);
 
 		// OK button
 
-		EclRegisterButton(
-			screenw / 2 - 50, screenh / 3 + 110, 100, 15, "Close", "Close the message box", "msgbox_close");
+		EclRegisterButton(screenw / 2 - 50,
+						  screenh / 3 + boxHeight - 30,
+						  100,
+						  15,
+						  "Close",
+						  "Close the message box",
+						  "msgbox_close");
 		if (closeclick) {
 			EclRegisterButtonCallback("msgbox_close", closeclick);
 		} else {

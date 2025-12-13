@@ -29,7 +29,9 @@ std::string SupabaseClient::Login(const std::string& email, const std::string& p
 	cpr::Response r =
 		cpr::Post(cpr::Url { endpoint },
 				  cpr::Header { { "apikey", m_anonKey }, { "Content-Type", "application/json" } },
-				  cpr::Body { payload.dump() });
+				  cpr::Body { payload.dump() },
+				  cpr::VerifySsl { false },
+				  cpr::Timeout { 5000 });
 
 	if (r.status_code == 200) {
 		try {
@@ -63,7 +65,7 @@ SupabaseClient::SignUp(const std::string& email, const std::string& password, co
 				  cpr::Header { { "apikey", m_anonKey }, { "Content-Type", "application/json" } },
 				  cpr::Body { payload.dump() },
 				  cpr::VerifySsl { false }, // Disable SSL verification for testing
-				  cpr::Timeout { 10000 } // 10 second timeout
+				  cpr::Timeout { 5000 } // 5 second timeout to prevent app freeze
 		);
 
 	if (r.status_code == 200) {
