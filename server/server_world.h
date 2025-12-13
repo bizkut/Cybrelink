@@ -46,6 +46,7 @@ struct ServerBankAccount {
 	std::string accountName;
 	int32_t balance;
 	int32_t ownerPlayerId; // 0 = NPC/system
+	int32_t regenRate; // Credits per hour (0-1000, random per account)
 };
 
 // ============================================================================
@@ -147,9 +148,14 @@ public:
 	void SpawnNPCs(int count);
 	void Update(float deltaTime); // Called every game tick - runs NPC AI
 
+	// Economy
+	void HourlyTick(); // Regenerate bank accounts
+	void SpawnMissions(); // Create new missions if below threshold
+
 private:
 	void UpdateNPCAgent(ServerAgent& npc, float deltaTime);
 	void NPCAttemptMission(ServerAgent& npc);
+	ServerMission CreateRandomMission();
 
 	std::vector<ServerComputer> m_computers;
 	std::vector<ServerBankAccount> m_bankAccounts;
@@ -162,6 +168,11 @@ private:
 
 	bool m_dirty; // needs saving
 	int32_t m_nextAgentId;
+	int32_t m_nextMissionId;
+
+	// Economy timers
+	float m_hourlyTimer; // Counts up to 3600s for hourly tick
+	float m_missionTimer; // Counts up for mission spawning
 };
 
 } // namespace Server

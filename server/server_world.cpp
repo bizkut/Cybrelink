@@ -16,7 +16,10 @@ namespace Server {
 
 ServerWorld::ServerWorld() :
 	m_dirty(false),
-	m_nextAgentId(1000) // NPCs start at 1000 to differentiate from player IDs
+	m_nextAgentId(1000),
+	m_nextMissionId(1),
+	m_hourlyTimer(0.0f),
+	m_missionTimer(0.0f)
 {
 }
 
@@ -372,6 +375,20 @@ void ServerWorld::SpawnNPCs(int count)
 
 void ServerWorld::Update(float deltaTime)
 {
+	// Economy: hourly bank regeneration
+	m_hourlyTimer += deltaTime;
+	if (m_hourlyTimer >= 3600.0f) { // 1 hour = 3600 seconds
+		m_hourlyTimer = 0.0f;
+		HourlyTick();
+	}
+
+	// Economy: mission spawning (every 5-15 minutes, check every 60s)
+	m_missionTimer += deltaTime;
+	if (m_missionTimer >= 60.0f) {
+		m_missionTimer = 0.0f;
+		SpawnMissions();
+	}
+
 	// Update all NPC agents
 	for (auto& agent : m_agents) {
 		if (agent.isNPC) {
@@ -449,6 +466,68 @@ void ServerWorld::NPCAttemptMission(ServerAgent& npc)
 			printf("[NPC AI] %s TRACED! Rating dropped to %d\n", npc.handle.c_str(), npc.uplinkRating);
 		}
 	}
+}
+
+// ============================================================================
+// Economy
+// ============================================================================
+
+void ServerWorld::HourlyTick()
+{
+	printf("[ServerWorld] Hourly tick - regenerating bank accounts\n");
+
+	for (auto& acc : m_bankAccounts) {
+		if (acc.regenRate > 0) {
+			acc.balance += acc.regenRate;
+			m_dirty = true;
+		}
+	}
+}
+
+void ServerWorld::SpawnMissions()
+{
+	const int MIN_MISSIONS = 20;
+	const int MAX_MISSIONS = 50;
+
+	int activeCount = 0;
+	for (const auto& m : m_missions) {
+		if (!m.completed && m.claimedBy == 0) {
+			activeCount++;
+		}
+	}
+
+	if (activeCount < MIN_MISSIONS) {
+		int toSpawn = (rand() % 5) + 3; // 3-7 new missions
+		for (int i = 0; i < toSpawn && m_missions.size() < MAX_MISSIONS; i++) {
+			ServerMission newMission = CreateRandomMission();
+			m_missions.push_back(newMission);
+			printf("[Economy] Spawned mission %d (difficulty %d, payment %d)\n",
+				   newMission.id,
+				   newMission.difficulty,
+				   newMission.payment);
+		}
+		m_dirty = true;
+	}
+}
+
+ServerMission ServerWorld::CreateRandomMission()
+{
+	static const char* descriptions[] = { "Steal research data",	   "Delete incriminating files",
+										  "Transfer funds discreetly", "Trace a target user",
+										  "Destroy mainframe logs",	   "Copy financial records",
+										  "Investigate corporation",   "Frame a target agent" };
+
+	ServerMission m;
+	m.id = m_nextMissionId++;
+	m.type = rand() % 8; // Random mission type
+	m.targetIp = 0; // TODO: Pick random computer
+	m.description = descriptions[m.type];
+	m.difficulty = 1 + (rand() % 10); // 1-10
+	m.payment = (1000 + rand() % 9000) * m.difficulty; // 1k-90k scaled by difficulty
+	m.claimedBy = 0;
+	m.completed = false;
+
+	return m;
 }
 
 } // namespace Server
